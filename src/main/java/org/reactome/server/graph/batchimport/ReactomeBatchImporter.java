@@ -158,6 +158,7 @@ public class ReactomeBatchImporter {
                 switch (attribute) {
                     case "regulatedBy":
                     case "positivelyRegulatedBy":
+                        //saveRelationships might enter in recursion so changes in these method have to be carefully thought
                         saveRelationships(id, getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.regulatedEntity), "regulatedBy");
                         break;
                     case "orthologousEvent":
@@ -167,32 +168,33 @@ public class ReactomeBatchImporter {
                          * otherwise relationships will be duplicated
                          * if event will break otherwise (physical entity will fall to default
                          */
-//                        if (instance.getSchemaClass().isa(ReactomeJavaConstants.Event)) {
                         GKInstance species = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.species);
                         if (species == null) continue;
                         if (species.getDBID().equals(MAIN_SPECIES_ID)) {
-                            //TODO comment need to remove for now because of the fake tlps
+                            // Note: inferredFrom and ortholgousEvent are used indistinctly for the same thing and there is no consistency
                             Collection inferredFrom = getCollectionFromGkInstance(instance, ReactomeJavaConstants.inferredFrom);
                             if (inferredFrom != null && !inferredFrom.isEmpty()) {
+                                //saveRelationships might enter in recursion so changes in these method have to be carefully thought
                                 saveRelationships(id, inferredFrom, "inferredToReverse");
-                                //TODO log
                             }
-                            //TODO comment
+
                             Collection orthologousEvents = getCollectionFromGkInstance(instance, ReactomeJavaConstants.orthologousEvent);
                             if (orthologousEvents != null && !orthologousEvents.isEmpty()) {
+                                //saveRelationships might enter in recursion so changes in these method have to be carefully thought
                                 saveRelationships(id, orthologousEvents, "inferredTo");
                             } else {
                                 Collection referrers = getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.orthologousEvent);
                                 if (referrers != null && !referrers.isEmpty()) {
+                                    //saveRelationships might enter in recursion so changes in these method have to be carefully thought
                                     saveRelationships(id, referrers, "inferredTo");
-                                    errorLogger.error("Entry has referred orthologous but no attribute orthologous: " +
-                                            instance.getDBID() + " " + instance.getDisplayName());
+                                    errorLogger.error("Entry has referred orthologous but no attribute orthologous: " + instance.getDBID() + " " + instance.getDisplayName());
                                 }
                             }
                         }
                         break;
                     default:
                         if (isValidGkInstanceAttribute(instance, attribute)) {
+                            //saveRelationships might enter in recursion so changes in these method have to be carefully thought
                             saveRelationships(id, getCollectionFromGkInstance(instance, attribute), attribute);
                         }
                         break;
@@ -335,9 +337,8 @@ public class ReactomeBatchImporter {
                     default:
                         if (isValidGkInstanceAttribute(instance, attribute)) {
                             Object value = getObjectFromGkInstance(instance, attribute);
-                            if (value != null && !value.toString().isEmpty()) {
-                                properties.put(attribute, value);
-                            }
+                            if (value == null || value.toString().isEmpty()) continue;
+                            properties.put(attribute, value);
                         }
                         break;
                 }
