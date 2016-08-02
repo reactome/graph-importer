@@ -158,7 +158,7 @@ public class ReactomeBatchImporter {
                 switch (attribute) {
                     case "regulatedBy":
                     case "positivelyRegulatedBy":
-                        //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
+                        //saveRelationships might enter in recursion so changes in "positivelyRegulatedBy" have to be carefully thought
                         saveRelationships(id, getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.regulatedEntity), "regulatedBy");
                         break;
                     case "orthologousEvent":
