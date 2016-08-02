@@ -158,7 +158,7 @@ public class ReactomeBatchImporter {
                 switch (attribute) {
                     case "regulatedBy":
                     case "positivelyRegulatedBy":
-                        //saveRelationships might enter in recursion so changes in these method have to be carefully thought
+                        //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
                         saveRelationships(id, getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.regulatedEntity), "regulatedBy");
                         break;
                     case "orthologousEvent":
@@ -174,18 +174,18 @@ public class ReactomeBatchImporter {
                             // Note: inferredFrom and ortholgousEvent are used indistinctly for the same thing and there is no consistency
                             Collection inferredFrom = getCollectionFromGkInstance(instance, ReactomeJavaConstants.inferredFrom);
                             if (inferredFrom != null && !inferredFrom.isEmpty()) {
-                                //saveRelationships might enter in recursion so changes in these method have to be carefully thought
+                                //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
                                 saveRelationships(id, inferredFrom, "inferredToReverse");
                             }
 
                             Collection orthologousEvents = getCollectionFromGkInstance(instance, ReactomeJavaConstants.orthologousEvent);
                             if (orthologousEvents != null && !orthologousEvents.isEmpty()) {
-                                //saveRelationships might enter in recursion so changes in these method have to be carefully thought
+                                //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
                                 saveRelationships(id, orthologousEvents, "inferredTo");
                             } else {
                                 Collection referrers = getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.orthologousEvent);
                                 if (referrers != null && !referrers.isEmpty()) {
-                                    //saveRelationships might enter in recursion so changes in these method have to be carefully thought
+                                    //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
                                     saveRelationships(id, referrers, "inferredTo");
                                     errorLogger.error("Entry has referred orthologous but no attribute orthologous: " + instance.getDBID() + " " + instance.getDisplayName());
                                 }
@@ -194,7 +194,7 @@ public class ReactomeBatchImporter {
                         break;
                     default:
                         if (isValidGkInstanceAttribute(instance, attribute)) {
-                            //saveRelationships might enter in recursion so changes in these method have to be carefully thought
+                            //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
                             saveRelationships(id, getCollectionFromGkInstance(instance, attribute), attribute);
                         }
                         break;
