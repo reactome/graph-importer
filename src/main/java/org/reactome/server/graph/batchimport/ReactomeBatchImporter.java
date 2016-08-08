@@ -476,67 +476,84 @@ public class ReactomeBatchImporter {
     }
 
     /**
-     * Creating uniqueness constraints for the new DB.
+     * Creating uniqueness constraints and indexes for the new DB.
      * WARNING: Constraints can not be enforced while importing, only after batchInserter.shutdown()
      */
     private void createConstraints() {
 
-        createSchemaConstraint(Label.label(DatabaseObject.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(DatabaseObject.class.getSimpleName()), STID);
-//        todo should be constraint but currently database has entries that violate that constraint
-//        createSchemaConstraint(Label.label(DatabaseObject.class.getSimpleName()), OLD_STID);
-
-        createSchemaConstraint(Label.label(Event.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(Event.class.getSimpleName()), STID);
-
-        createSchemaConstraint(Label.label(Pathway.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(Pathway.class.getSimpleName()), STID);
-
-        createSchemaConstraint(Label.label(ReactionLikeEvent.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(ReactionLikeEvent.class.getSimpleName()), STID);
-
-        createSchemaConstraint(Label.label(Reaction.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(Reaction.class.getSimpleName()), STID);
-
-        createSchemaConstraint(Label.label(PhysicalEntity.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(PhysicalEntity.class.getSimpleName()), STID);
-
-        createSchemaConstraint(Label.label(Complex.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(Complex.class.getSimpleName()), STID);
-
-        createSchemaConstraint(Label.label(EntitySet.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(EntitySet.class.getSimpleName()), STID);
-
-        createSchemaConstraint(Label.label(GenomeEncodedEntity.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(GenomeEncodedEntity.class.getSimpleName()), STID);
-
-        createSchemaConstraint(Label.label(ReferenceEntity.class.getSimpleName()), DBID);
-        createSchemaConstraint(Label.label(ReferenceEntity.class.getSimpleName()), STID);
-
-
-        createSchemaConstraint(Label.label(Taxon.class.getSimpleName()), "taxId");
-        createSchemaConstraint(Label.label(Species.class.getSimpleName()), "taxId");
+        createSchemaConstraint(DatabaseObject.class, DBID);
+        createSchemaConstraint(DatabaseObject.class, STID);
 
 //        todo should be constraint but currently database has entries that violate that constraint
-//        createSchemaConstraint(Label.label(Person.class.getSimpleName()), "orcidId");
-        batchInserter.createDeferredSchemaIndex(Label.label(Person.class.getSimpleName())).on("orcidId");
+//        createSchemaConstraint(DatabaseObject.class, OLD_STID);
+        createDeferredSchemaIndex(DatabaseObject.class, "oldStId"); //Remove when previous one can be uncommented
 
-        batchInserter.createDeferredSchemaIndex(Label.label(LiteratureReference.class.getSimpleName())).on("pubMedIdentifier");
-        batchInserter.createDeferredSchemaIndex(Label.label(ReferenceEntity.class.getSimpleName())).on(ACCESSION);
+        createSchemaConstraint(Event.class, DBID);
+        createSchemaConstraint(Event.class, STID);
+
+        createSchemaConstraint(Pathway.class, DBID);
+        createSchemaConstraint(Pathway.class, STID);
+
+        createSchemaConstraint(ReactionLikeEvent.class, DBID);
+        createSchemaConstraint(ReactionLikeEvent.class, STID);
+
+        createSchemaConstraint(Reaction.class, DBID);
+        createSchemaConstraint(Reaction.class, STID);
+
+        createSchemaConstraint(PhysicalEntity.class, DBID);
+        createSchemaConstraint(PhysicalEntity.class, STID);
+
+        createSchemaConstraint(Complex.class, DBID);
+        createSchemaConstraint(Complex.class, STID);
+
+        createSchemaConstraint(EntitySet.class, DBID);
+        createSchemaConstraint(EntitySet.class, STID);
+
+        createSchemaConstraint(GenomeEncodedEntity.class, DBID);
+        createSchemaConstraint(GenomeEncodedEntity.class, STID);
+
+        createSchemaConstraint(ReferenceEntity.class, DBID);
+        createSchemaConstraint(ReferenceEntity.class, STID);
+
+
+        createSchemaConstraint(Taxon.class, "taxId");
+        createSchemaConstraint(Species.class, "taxId");
+
+//        todo should be constraint but currently database has entries that violate that constraint
+//        createSchemaConstraint(Person.class, "orcidId");
+        createDeferredSchemaIndex(Person.class, "orcidId");
+
+        createDeferredSchemaIndex(LiteratureReference.class, "pubMedIdentifier");
+        createDeferredSchemaIndex(ReferenceEntity.class, ACCESSION);
     }
 
     /**
      * Simple wrapper for creating a isUnique constraint
      *
-     * @param label Label (of specific Class)
+     * @param clazz specific Class
      * @param name  fieldName
      */
-    private static void createSchemaConstraint(Label label, String name) {
+    private static void createSchemaConstraint(Class clazz, String name) {
         try {
-            batchInserter.createDeferredConstraint(label).assertPropertyIsUnique(name).create();
+            batchInserter.createDeferredConstraint(Label.label(clazz.getSimpleName())).assertPropertyIsUnique(name).create();
         } catch (Throwable e) {
             //ConstraintViolationException and PreexistingIndexEntryConflictException are both catch here
-            importLogger.warn("Could not create Constraint on " + label + " " + name);
+            importLogger.warn("Could not create Constraint on " + clazz.getSimpleName() + " for " + name);
+        }
+    }
+
+    /**
+     * Simple wrapper for creating an index
+     *
+     * @param clazz specific Class
+     * @param name fieldName
+     */
+    private static void createDeferredSchemaIndex(Class clazz, String name){
+        try {
+            batchInserter.createDeferredSchemaIndex(Label.label(clazz.getSimpleName())).on(name).create();
+        } catch (Throwable e) {
+            //ConstraintViolationException and PreexistingIndexEntryConflictException are both catch here
+            importLogger.warn("Could not create Index on " + clazz.getSimpleName() + " for " + name);
         }
     }
 
