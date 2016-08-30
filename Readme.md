@@ -6,7 +6,7 @@
 
 The Batch Importer is a tool used for initial data conversion from the Reactome relational database to a graph database. To maximise import performance the Neo4j Batch Importer is utilised to directly create the Neo4j database file structure. This process is unsafe ignoring transactions, constraints or other safety features. Constraints will be checked once the import process has finished. 
 
-The BatchImporter generates the graph database dynamically depending on the Model specified in the Reactome graph library. Depending on the POJOs specified in Domain model, data will be automatically fetched from corresponding Instances of the relational database. Annotations used in the model help to indicate properties and relationships that should be taken into account in the import process.  
+The Batch Importer generates the graph database dynamically depending on the Model specified in the Reactome graph library. Depending on the POJOs specified in Domain model, data will be automatically fetched from corresponding Instances of the relational database. Annotations used in the model help to indicate properties and relationships that should be taken into account in the import process.  
 
 #### Project components used:
 
