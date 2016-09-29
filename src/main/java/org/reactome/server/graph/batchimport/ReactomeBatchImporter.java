@@ -40,6 +40,7 @@ public class ReactomeBatchImporter {
 
     private static final String DBID = "dbId";
     private static final String STID = "stId";
+    private static final String OLD_STID = "oldStId";
     private static final String ACCESSION = "identifier";
     private static final String NAME = "displayName";
 
@@ -217,9 +218,11 @@ public class ReactomeBatchImporter {
     private Long saveDatabaseObject(GKInstance instance, Class clazz) throws IllegalArgumentException {
 
         Label[] labels = getLabels(clazz);
+        String schemaClass = clazz.getSimpleName();
         if (topLevelPathways.contains(instance.getDBID())) {
+            schemaClass = "TopLevelPathway";
             Label[] newLabels = Arrays.copyOf(labels, labels.length + 1);
-            newLabels[labels.length] = Label.label("TopLevelPathway");
+            newLabels[labels.length] = Label.label(schemaClass);
             labels = newLabels;
         }
 
@@ -228,6 +231,7 @@ public class ReactomeBatchImporter {
          * We save those two the "hard" way
          */
         Map<String, Object> properties = new HashMap<>();
+        properties.put("simpleLabel", schemaClass);
         properties.put(DBID, instance.getDBID());
         if (instance.getDisplayName() != null) {
             // TO fix Different Styles in Person display Name (example Jupe, Steven or Jupe, S)
@@ -265,7 +269,7 @@ public class ReactomeBatchImporter {
                         if (version != null) properties.put("stIdVersion", stId + "." + version);
                         //Keeping old stable identifier if present
                         String oldStId = (String) getObjectFromGkInstance(stableIdentifier, "oldIdentifier");
-                        if (oldStId != null) properties.put("oldStId", oldStId);
+                        if (oldStId != null) properties.put(OLD_STID, oldStId);
                         break;
                     case "orcidId":
                         GKInstance orcid = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
@@ -484,9 +488,8 @@ public class ReactomeBatchImporter {
         createSchemaConstraint(DatabaseObject.class, DBID);
         createSchemaConstraint(DatabaseObject.class, STID);
 
-//        todo should be constraint but currently database has entries that violate that constraint
-//        createSchemaConstraint(DatabaseObject.class, OLD_STID);
-        createDeferredSchemaIndex(DatabaseObject.class, "oldStId"); //Remove when previous one can be uncommented
+        createSchemaConstraint(DatabaseObject.class, OLD_STID);
+        //createDeferredSchemaIndex(DatabaseObject.class, OLD_STID); //Alternative to the previous one in case of duplicates
 
         createSchemaConstraint(Event.class, DBID);
         createSchemaConstraint(Event.class, STID);
@@ -519,8 +522,8 @@ public class ReactomeBatchImporter {
         createSchemaConstraint(Taxon.class, "taxId");
         createSchemaConstraint(Species.class, "taxId");
 
-//        todo should be constraint but currently database has entries that violate that constraint
-//        createSchemaConstraint(Person.class, "orcidId");
+        //Since the same author might be several times, due to the merging of different Reactome
+        //databases in the past, there cannot be a schema constrain but an index over this field
         createDeferredSchemaIndex(Person.class, "orcidId");
 
         createDeferredSchemaIndex(LiteratureReference.class, "pubMedIdentifier");
