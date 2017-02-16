@@ -88,16 +88,16 @@ if ${_INSTALL_NEO4J} = true; then
     echo "installing neo4j finished"
     if [ ! -z "$_NEO4J_PASSWORD" ]; then 
 	echo "removing old authentication"
-	if sudo service neo4j-service status >/dev/null 2>&1; then
+	if sudo service neo4j status >/dev/null 2>&1; then
             echo "Shutting down Neo4j DB"
-            if ! sudo service neo4j-service stop >/dev/null 2>&1; then 
+            if ! sudo service neo4j stop >/dev/null 2>&1; then
             	echo "an error occurred while trying to shut down neo4j db"
 		exit 1
     	    fi
 	fi
 	sudo rm /var/lib/neo4j/data/dbms/auth
-	if ! sudo service neo4j-service status >/dev/null 2>&1; then
-	    if ! sudo service neo4j-service start >/dev/null 2>&1; then 
+	if ! sudo service neo4j status >/dev/null 2>&1; then
+	    if ! sudo service neo4j start >/dev/null 2>&1; then
 		echo "An error occurred while trying to start neo4j"
 		exit 1
 	    fi
@@ -107,28 +107,26 @@ if ${_INSTALL_NEO4J} = true; then
     fi 
 fi
 
-echo "Checking if current directory is valid project"
-if ! mvn -q clean package -DskipTests; then
-    if [ ! -f /target/DatabaseImporter-jar-with-dependencies.jar ]; then
-        echo "Cloning new repo from git"
-        git clone https://fkorn@bitbucket.org/fabregatantonio/graph-reactome.git
-        git -C ./graph-reactome/ fetch && git -C ./graph-reactome/  checkout master
-        _PATH="/graph-reactome"
+if ${_IMPORT_DATA} = true; then
+    echo "Checking if current directory is valid project"
+    if ! mvn -q clean package -DskipTests; then
+        if [ ! -f /target/BatchImporter-jar-with-dependencies.jar ]; then
+            echo "Cloning new repo from git"
+            git clone https://github.com/reactome/graph-importer.git
+            _PATH="/graph-importer"
 
-        echo "Started packaging reactome project"
-        if ! mvn -q -f .${_PATH}/pom.xml clean package -DskipTests; then
-            echo "An error occurred when packaging the project"
-            exit 1
+            echo "Started packaging reactome project"
+            if ! mvn -q -f .${_PATH}/pom.xml clean package -DskipTests; then
+                echo "An error occurred when packaging the project"
+                exit 1
+            fi
         fi
     fi
-fi
-
-if ${_IMPORT_DATA} = true; then
 
     if [ "$_GRAPH_DIR" == "/var/lib/neo4j/data/" ]; then
-        if sudo service neo4j-service status; then
+        if sudo service neo4j status; then
             echo "Shutting down Neo4j DB in order to prepare dataimport import"
-            if ! sudo service neo4j-service stop; then
+            if ! sudo service neo4j stop; then
                 echo "An error occurred while trying to shut down neo4j db"
             exit 1
             fi
@@ -148,9 +146,9 @@ if ${_IMPORT_DATA} = true; then
         echo "An error occurred when trying to change permissions of the neo4j graph"
     fi
 
-    echo "Started importing dataimport to the neo4j database"
-    if ! java -jar .${_PATH}/target/DatabaseImporter-jar-with-dependencies.jar -h ${_REACTOME_HOST} -s ${_REACTOME_PORT} -d ${_REACTOME_DATABASE} -u ${_REACTOME_USER} -p ${_REACTOME_PASSWORD} -n ${_GRAPH_DIR}${_GRAPH_NAME}; then
-        echo "An error occurred during the dataimport import process"
+    echo "Started importing data to the neo4j database"
+    if ! java -jar .${_PATH}/target/BatchImporter-jar-with-dependencies.jar -h ${_REACTOME_HOST} -s ${_REACTOME_PORT} -d ${_REACTOME_DATABASE} -u ${_REACTOME_USER} -p ${_REACTOME_PASSWORD} -n ${_GRAPH_DIR}${_GRAPH_NAME}; then
+        echo "An error occurred during the data import process"
         exit 1
     fi
     echo "DataImport finished successfully!"
@@ -161,43 +159,16 @@ if ${_IMPORT_DATA} = true; then
         exit 1
     fi
 fi
-if ! sudo service neo4j-service status >/dev/null 2>&1; then
+
+if ! sudo service neo4j status >/dev/null 2>&1; then
     echo "Starting neo4j database"
-    if ! sudo service neo4j-service start; then
+    if ! sudo service neo4j start; then
         echo "Neo4j database could not be started"
         exit 1
     fi
 fi
-echo "Running Junit tests on the Reactome graph"
-if ! mvn -f .${_PATH}/pom.xml test >/dev/null 2>&1; then
-    echo "WARNING!: JUnit tests could not finish successfully !!!"
-    (( _PROBLEMS += 1 ))
-else
-    echo "All tests have successfully finished, detail can be found in ...."
-fi
-echo "Running quality assurance tests"
-if ! java -jar .${_PATH}/target/QualityAssurance-jar-with-dependencies.jar >/dev/null 2>&1; then
-     echo "WARNING!: QA tests could not finish successfully !!!"
-    (( _PROBLEMS += 1 ))
-else
-    echo "All QaTests have successfully finished, detail can be found ...."
-fi
-echo "Deploying project to nexus"
-if ! mvn -f .${_PATH}/pom.xml deploy -DskipTests >/dev/null 2>&1; then
-    echo "WARNING!: An error occurred during deployment !!!"
-    (( _PROBLEMS += 1 ))
-fi 
-echo "Creating maven site"
-if ! mvn -f .${_PATH}/pom.xml site:site >/dev/null 2>&1; then
-    echo "WARNING!: An error occurred during site creation !!!"
-    (( _PROBLEMS += 1 ))
-fi 
-echo "Deploying site to nexus"
-if ! mvn -f .${_PATH}/pom.xml site:deploy >/dev/null 2>&1; then
-    echo "WARNING!: An error occurred during site deployment !!!"
-    (( _PROBLEMS += 1 ))
-fi
+
 if [ ! -z "$_PATH" ]; then
-    sudo rm -R graph-reactome
+    sudo rm -R graph-importer
 fi
 echo "Script finished with"  ${_PROBLEMS} "problems!"
