@@ -10,33 +10,76 @@ The Batch Importer generates the graph database dynamically depending on the Mod
 
 #### Project components used:
 
-* Neo4j - version: 3.0.1
-* Reactome graph library 
-
-#### Project usage: 
-
-The Batch importer can be executed using the setup-graph.sh script or manually running the executable jar file. 
+* [Neo4j](https://neo4j.com/download/) Community Edition - version: 3.0.1 or latest
+* Reactome [Graph](https://github.com/reactome/graph-core) Core 
 
 #### Reactome data import
 
 Reactome data will be automatically be imported when running the ```setup-graph.sh``` script. User executing this script will be asked for password if permissions require it.
 
+* Installing Neo4j (Linux only)
+```console
+./setup-graph -i
+
+or 
+
+sudo ./setup-graph -i
+```
+
+* Installing Neo4j in other platforms
+    * [MAC OS X](http://neo4j.com/docs/operations-manual/current/installation/osx/)
+    * [Windows](http://neo4j.com/docs/operations-manual/current/installation/windows/)
+    
+```console
+By opening http://localhost:7474 and reaching Neo4j browser you're ready to import data.
+```
+
+* Importing Data
+
+> :memo: Refer to [Extras](https://github.com/gsviteri/DemoLayout/new/master?readme=1#extras) in order to download the MySql database before starting.
+
+```console
+./setup-graph -j 
+    -h  Reactome MySQL database host. DEFAULT: localhost
+    -s  Reactome MySQL database port. DEFAULT: 3306
+    -t  Reactome MySQL database name. DEFAULT: reactome
+    -u  Reactome MySQL database user. DEFAULT: reactome
+    -v  Reactome MySQL database password. DEFAULT: reactome
+    -d  Target directory where graph will be created DEFAULT: ./target/graph.db
+```
+
+Example:
+```
+./setup-graph -j -h localhost -s 3306 -t reactome -u reactome_user -p not2share -d ./target/graph.db
+```
+
 #### Data Import without the script
 
-Reactome data can be imported without the script using the DataImportLauncher entry point. Use: ```java-jar DataImport.jar```
-**CAUTION!**
-In order for the import to succeed following steps must be ensured:
- 1) All permissions to the specified target folder must be granted to the executing users of the jar file
- 2) When using the new database, permissions must be given to neo4j in order to access the database.
- 3) Restart neo4j 
+Reactome data can be imported without the script using the Main.java entry point. Use: ```java -jar BatchImporter-jar-with-dependencies.jar```
+
+:warning: **CAUTION:** In order for the import to succeed following steps must be ensured:
+  1. All permissions to the specified target folder must be granted to the executing users of the jar file
+  2. When using the new database, permissions must be given to neo4j in order to access the database.
+  3. Restart neo4j 
 
 **Properties**
 
 When executing the jar file following properties have to be set.
-
+```java
     -h  Reactome MySQL database host. DEFAULT: localhost
     -s  Reactome MySQL database port. DEFAULT: 3306
-    -s  Reactome MySQL database name. DEFAULT: reactome
+    -t  Reactome MySQL database name. DEFAULT: reactome
     -u  Reactome MySQL database user. DEFAULT: reactome
     -v  Reactome MySQL database password. DEFAULT: reactome
     -d  Target directory where graph will be created DEFAULT: ./target/graph.db
+```
+
+Example:
+```
+java -jar BatchImporter-jar-with-dependencies.jar -h localhost -s 3306 -t reactome -u reactome_user -p not2share -d ./target/graph.db
+```
+
+#### Extras
+* [1][Reactome Graph Database](http://www.reactome.org/download/current/reactome.graphdb.tgz)
+* [2][Documentation](http://www.reactome.org/pages/documentation/developer-guide/graph-database/)
+* [3][MySQL dump database](http://www.reactome.org/download/current/databases/gk_current.sql.gz)
