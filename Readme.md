@@ -1,4 +1,4 @@
-<!--![Logo](https://cdn.evbuc.com/images/3621635/40070539972/1/logo.png)-->
+![logo](https://cloud.githubusercontent.com/assets/6883670/22938783/bbef4474-f2d4-11e6-92a5-07c1a6964491.png)
 
 # Reactome Graph Database Batch Importer
 
@@ -15,15 +15,30 @@ The Batch Importer generates the graph database dynamically depending on the Mod
 
 #### Reactome data import
 
-Reactome data will be automatically be imported when running the ```setup-graph.sh``` script. User executing this script will be asked for password if permissions require it.
+Reactome data will be automatically be imported when running the [script](https://raw.githubusercontent.com/reactome/graph-importer/master/setup-graph.sh) ```setup-graph.sh```. User executing this script will be asked for password if permissions require it.
+
+Another option could be cloning the git repository ```git clone https://github.com/reactome/graph-importer.git``` 
+ 
+* Script Usage
+```console
+./setup-graph 
+    -h  Print usage.
+    -i  Add -i to Install Neo4j
+    -j  Add -j to Importa Data into Neo4j
+    -h  Reactome MySQL database host. DEFAULT: localhost
+    -s  Reactome MySQL database port. DEFAULT: 3306
+    -t  Reactome MySQL database name. DEFAULT: reactome
+    -u  Reactome MySQL database user. DEFAULT: reactome
+    -v  Reactome MySQL database password. DEFAULT: reactome
+    -d  Target directory where graph will be created DEFAULT: ./target/graph.db
+    -n  Neo4j password (only set when neo4j is installed)
+```
+
+:warning: Do not execute as sudo, permission will be asked when required
 
 * Installing Neo4j (Linux only)
 ```console
 ./setup-graph -i
-
-or 
-
-sudo ./setup-graph -i
 ```
 
 * Installing Neo4j in other platforms
@@ -46,6 +61,7 @@ By opening http://localhost:7474 and reaching Neo4j browser you're ready to impo
     -u  Reactome MySQL database user. DEFAULT: reactome
     -v  Reactome MySQL database password. DEFAULT: reactome
     -d  Target directory where graph will be created DEFAULT: ./target/graph.db
+    -n  Neo4j password (only set when neo4j is installed)
 ```
 
 Example:
@@ -72,14 +88,21 @@ When executing the jar file following properties have to be set.
     -u  Reactome MySQL database user. DEFAULT: reactome
     -v  Reactome MySQL database password. DEFAULT: reactome
     -d  Target directory where graph will be created DEFAULT: ./target/graph.db
+    -n  Neo4j password (only set when neo4j is installed)
 ```
 
 Example:
-```
-java -jar BatchImporter-jar-with-dependencies.jar -h localhost -s 3306 -t reactome -u reactome_user -p not2share -d ./target/graph.db
+```java
+java -jar BatchImporter-jar-with-dependencies.jar \ 
+     -h localhost \ 
+     -s 3306 \
+     -t reactome \ 
+     -u reactome_user \
+     -p not2share \ 
+     -d ./target/graph.db
 ```
 
 #### Extras
-* [1][Reactome Graph Database](http://www.reactome.org/download/current/reactome.graphdb.tgz)
-* [2][Documentation](http://www.reactome.org/pages/documentation/developer-guide/graph-database/)
-* [3][MySQL dump database](http://www.reactome.org/download/current/databases/gk_current.sql.gz)
+* [1] [Reactome Graph Database](http://www.reactome.org/download/current/reactome.graphdb.tgz)
+* [2] [Documentation](http://www.reactome.org/pages/documentation/developer-guide/graph-database/)
+* [3] [MySQL dump database](http://www.reactome.org/download/current/databases/gk_current.sql.gz)
