@@ -78,6 +78,13 @@ while getopts ":r:s:t:u:v:d:e:m:n:ijh" option; do
 done
 shift $((OPTIND - 1))
 
+# --- Check if the execution type has been passed --- #
+if ! $_INSTALL_NEO4J && ! $_IMPORT_DATA ; then
+ echo "missing argument execution type -i|-j"
+    echo "$usage"
+    exit 1
+fi;
+
 if ${_INSTALL_NEO4J} = true; then
     echo "start installing neo4j"
     sudo sh -c "wget -O - https://debian.neo4j.org/neotechnology.gpg.key | sudo apt-key add -" >/dev/null 2>&1
