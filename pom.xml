@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.reactome.server.graph</groupId>
             <artifactId>graph-core</artifactId>
-            <version>1.0.3</version>
+            <version>1.0.4</version>
         </dependency>
         <!--Reactome-base for MYSQL Adapter-->
         <dependency>
