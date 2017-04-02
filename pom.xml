@@ -36,6 +36,10 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <reactome.graph.core>1.0.5-SNAPSHOT</reactome.graph.core>
+        <reactome.base>1.2.7</reactome.base>
+        <neo4j.version>3.0.1</neo4j.version>
     </properties>
 
     <dependencies>
@@ -43,24 +47,24 @@
         <dependency>
             <groupId>org.reactome.server.graph</groupId>
             <artifactId>graph-core</artifactId>
-            <version>1.0.4</version>
+            <version>${reactome.graph.core}</version>
         </dependency>
         <!--Reactome-base for MYSQL Adapter-->
         <dependency>
             <groupId>org.reactome.base</groupId>
             <artifactId>reactome-base</artifactId>
-            <version>1.2.7</version>
+            <version>${reactome.base}</version>
         </dependency>
         <!--Neo4j batch importer-->
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-kernel</artifactId>
-            <version>3.0.1</version>
+            <version>${neo4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-lucene-index</artifactId>
-            <version>3.0.1</version>
+            <version>${neo4j.version}</version>
         </dependency>
         <!--Jasp console reader-->
         <dependency>
