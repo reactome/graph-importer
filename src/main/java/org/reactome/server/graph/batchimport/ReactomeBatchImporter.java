@@ -19,8 +19,7 @@ import org.reactome.server.graph.domain.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.sql.SQLException;
 import java.text.DateFormat;
@@ -41,10 +40,12 @@ public class ReactomeBatchImporter {
     private static final String DBID = "dbId";
     private static final String STID = "stId";
     private static final String OLD_STID = "oldStId";
+    private static final String TAXONOMY_ID = "taxId";
     private static final String ACCESSION = "identifier";
     private static final String NAME = "displayName";
 
     private static final String STOICHIOMETRY = "stoichiometry";
+    private static final String ORDER = "order";
 
     private static final Map<Class, List<String>> primitiveAttributesMap = new HashMap<>();
     private static final Map<Class, List<String>> primitiveListAttributesMap = new HashMap<>();
@@ -149,7 +150,7 @@ public class ReactomeBatchImporter {
 
         String clazzName = DatabaseObject.class.getPackage().getName() + "." + instance.getSchemClass().getName();
         Class clazz = Class.forName(clazzName);
-        setUpMethods(clazz); //Sets up the attribute map per class populating relationAttributesMap and primitiveListAttributesMap
+        setUpFields(clazz); //Sets up the attribute map per class populating relationAttributesMap and primitiveListAttributesMap
         Long id = saveDatabaseObject(instance, clazz);
         dbIds.put(instance.getDBID(), id); //caching the "saved" object mapped to the corresponding Neo4j node id
 
@@ -158,9 +159,8 @@ public class ReactomeBatchImporter {
 
                 switch (attribute) {
                     case "regulatedBy":
-                    case "positivelyRegulatedBy":
-                        //saveRelationships might enter in recursion so changes in "positivelyRegulatedBy" have to be carefully thought
-                        saveRelationships(id, getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.regulatedEntity), "regulatedBy");
+                        //saveRelations4hips might enter in recursion so changes in "positivelyRegulatedBy" have to be carefully thought
+                        saveRelationships(id, getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.regulatedEntity), attribute);
                         break;
                     case "orthologousEvent":
                         /*
@@ -269,7 +269,13 @@ public class ReactomeBatchImporter {
                         if (version != null) properties.put("stIdVersion", stId + "." + version);
                         //Keeping old stable identifier if present
                         String oldStId = (String) getObjectFromGkInstance(stableIdentifier, "oldIdentifier");
-                        if (oldStId != null) properties.put(OLD_STID, oldStId);
+                        if (oldStId != null ) {
+                            if (oldStId.isEmpty()) { //Avoids adding empty OLD_STID in the graph database
+                                errorLogger.warn("'" + OLD_STID + "' is empty for " + instance.getDBID() + ": " + instance.getDisplayName());
+                            } else {
+                                properties.put(OLD_STID, oldStId);
+                            }
+                        }
                         break;
                     case "orcidId":
                         GKInstance orcid = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
@@ -278,12 +284,14 @@ public class ReactomeBatchImporter {
                         if (orcidId == null) continue;
                         properties.put(attribute, orcidId);
                         break;
-                    case "taxId":
+                    case TAXONOMY_ID:
                         GKInstance taxon = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
-                        if (taxon == null) continue;
-                        String taxId = (String) getObjectFromGkInstance(taxon, ReactomeJavaConstants.identifier);
-                        if (taxId == null) continue;
-                        properties.put(attribute, taxId);
+                        String taxId = taxon != null ? (String) getObjectFromGkInstance(taxon, ReactomeJavaConstants.identifier) : null;
+                        if (taxId == null || taxId.isEmpty()) {
+                            errorLogger.warn("'" + TAXONOMY_ID + "' cannot be set for " + instance.getDBID() + ": " + instance.getDisplayName());
+                        } else {
+                            properties.put(attribute, taxId);
+                        }
                         break;
                     case "hasDiagram":
                         if (instance.getDbAdaptor() instanceof MySQLAdaptor) {
@@ -407,19 +415,20 @@ public class ReactomeBatchImporter {
             }
         }
 
-        Map<Long, GkInstanceStoichiometryHelper> stoichiometryMap = new HashMap<>();
+        Map<Long, GkInstancePropertiesHelper> propertiesMap = new HashMap<>();
         //noinspection unchecked
         objects.stream().filter(object -> object instanceof GKInstance).forEach(object -> {
             GKInstance instance = (GKInstance) object;
-            if (stoichiometryMap.containsKey(instance.getDBID())) {
-                stoichiometryMap.get(instance.getDBID()).increment();
+            if (propertiesMap.containsKey(instance.getDBID())) {
+                propertiesMap.get(instance.getDBID()).increment();
             } else {
-                stoichiometryMap.put(instance.getDBID(), new GkInstanceStoichiometryHelper(instance));
+                int order = propertiesMap.keySet().size();
+                propertiesMap.put(instance.getDBID(), new GkInstancePropertiesHelper(instance, order));
             }
         });
 
-        for (Long dbId : stoichiometryMap.keySet()) {
-            GKInstance instance = stoichiometryMap.get(dbId).getInstance();
+        for (Long dbId : propertiesMap.keySet()) {
+            GKInstance instance = propertiesMap.get(dbId).getInstance();
             Long newId;
             if (!dbIds.containsKey(dbId)) {
                 newId = importGkInstance(instance);
@@ -428,7 +437,8 @@ public class ReactomeBatchImporter {
                 newId = dbIds.get(dbId);
             }
             Map<String, Object> properties = new HashMap<>();
-            properties.put(STOICHIOMETRY, stoichiometryMap.get(dbId).getCount());
+            properties.put(STOICHIOMETRY, propertiesMap.get(dbId).getCount());
+            properties.put(ORDER, propertiesMap.get(dbId).getOrder());
             RelationshipType relationshipType = RelationshipType.withName(relationName);
             saveRelationship(newId, oldId, relationshipType, properties);
         }
@@ -518,9 +528,8 @@ public class ReactomeBatchImporter {
         createSchemaConstraint(ReferenceEntity.class, DBID);
         createSchemaConstraint(ReferenceEntity.class, STID);
 
-
-        createSchemaConstraint(Taxon.class, "taxId");
-        createSchemaConstraint(Species.class, "taxId");
+        createSchemaConstraint(Taxon.class, TAXONOMY_ID);
+        createSchemaConstraint(Species.class, TAXONOMY_ID);
 
         //Since the same author might be several times, due to the merging of different Reactome
         //databases in the past, there cannot be a schema constrain but an index over this field
@@ -644,7 +653,7 @@ public class ReactomeBatchImporter {
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
      */
     @SuppressWarnings("JavaDoc")
-    private void setUpMethods(Class clazz) {
+    private void setUpFields(Class clazz) {
         if (!relationAttributesMap.containsKey(clazz) && !primitiveAttributesMap.containsKey(clazz)) {
             List<Field> fields = getAllFields(new ArrayList<>(), clazz);
             for (Field field : fields) {
@@ -689,9 +698,9 @@ public class ReactomeBatchImporter {
         if (map.containsKey(clazz)) {
             (map.get(clazz)).add(fieldName);
         } else {
-            List<String> methodList = new ArrayList<>();
-            methodList.add(fieldName);
-            map.put(clazz, methodList);
+            List<String> fieldList = new ArrayList<>();
+            fieldList.add(fieldName);
+            map.put(clazz, fieldList);
         }
     }
 
