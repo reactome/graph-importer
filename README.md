@@ -10,7 +10,7 @@ The Batch Importer generates the graph database dynamically depending on the Mod
 
 #### Project components used:
 
-* [Neo4j](https://neo4j.com/download/) Community Edition - version: 3.0.1 or latest
+* [Neo4j](https://neo4j.com/download/) Community Edition - version: 3.2.2 or latest
 * Reactome [Graph](https://github.com/reactome/graph-core) Core 
 
 #### Reactome data import
