@@ -19,7 +19,8 @@ import org.reactome.server.graph.domain.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.sql.SQLException;
 import java.text.DateFormat;
@@ -321,6 +322,7 @@ public class ReactomeBatchImporter {
                         break;
                     case "speciesName":
                         if (instance.getSchemClass().isa(ReactomeJavaConstants.OtherEntity)) continue;
+                        if (instance.getSchemClass().isa(ReactomeJavaConstants.ChemicalDrug)) continue;
                         List speciesList = (List) getCollectionFromGkInstance(instance, ReactomeJavaConstants.species);
                         if (speciesList == null || speciesList.isEmpty()) continue;
                         GKInstance species = (GKInstance) speciesList.get(0);
@@ -715,7 +717,7 @@ public class ReactomeBatchImporter {
         if (instance.getSchemClass().isValidAttribute(attribute)) {
             return true;
         }
-        errorLogger.warn(attribute + " is not a valid attribute for instance " + instance.getSchemClass());
+        errorLogger.warn(attribute + " is not a valid attribute for instance " + instance.getSchemClass().getName() + " (" + instance.getDBID() + ")");
         return false;
     }
 
