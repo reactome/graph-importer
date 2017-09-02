@@ -36,11 +36,10 @@ public class ReactomeBatchImporter {
     private static BatchInserter batchInserter;
     private static String DATA_DIR;
 
-    private static final Long MAIN_SPECIES_ID = 48887L;
-
     private static final String DBID = "dbId";
     private static final String STID = "stId";
     private static final String OLD_STID = "oldStId";
+    private static final Long TAXONOMY_ROOT = 164487L;
     private static final String TAXONOMY_ID = "taxId";
     private static final String ACCESSION = "identifier";
     private static final String NAME = "displayName";
@@ -147,7 +146,7 @@ public class ReactomeBatchImporter {
     @SuppressWarnings("unchecked")
     private Long importGkInstance(GKInstance instance) throws ClassNotFoundException {
 
-        if (dbIds.size() != 0 && dbIds.size() % 100 == 0)  updateProgressBar(dbIds.size());
+        if (dbIds.size() != 0 && dbIds.size() % 100 == 0) updateProgressBar(dbIds.size());
 
         String clazzName = DatabaseObject.class.getPackage().getName() + "." + instance.getSchemClass().getName();
         Class clazz = Class.forName(clazzName);
@@ -160,38 +159,50 @@ public class ReactomeBatchImporter {
 
                 switch (attribute) {
                     case "regulatedBy":
-                        //saveRelations4hips might enter in recursion so changes in "positivelyRegulatedBy" have to be carefully thought
-                        saveRelationships(id, getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.regulatedEntity), attribute);
-                        break;
-                    case "orthologousEvent":
                         /*
                          * Only one type of regulation is needed here, In the native data import only regulatedBy exists
                          * since the type of regulation is later determined by the Object Type we can only save one
                          * otherwise relationships will be duplicated
                          * if event will break otherwise (physical entity will fall to default
                          */
-                        GKInstance species = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.species);
-                        if (species == null) continue;
-                        if (species.getDBID().equals(MAIN_SPECIES_ID)) {
-                            // Note: inferredFrom and ortholgousEvent are used indistinctly for the same thing and there is no consistency
-                            Collection inferredFrom = getCollectionFromGkInstance(instance, ReactomeJavaConstants.inferredFrom);
-                            if (inferredFrom != null && !inferredFrom.isEmpty()) {
-                                //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
-                                saveRelationships(id, inferredFrom, "inferredToReverse");
-                            }
-
-                            Collection orthologousEvents = getCollectionFromGkInstance(instance, ReactomeJavaConstants.orthologousEvent);
-                            if (orthologousEvents != null && !orthologousEvents.isEmpty()) {
+                        //saveRelations4hips might enter in recursion so changes in "positivelyRegulatedBy" have to be carefully thought
+                        saveRelationships(id, getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.regulatedEntity), attribute);
+                        break;
+                    case "orthologousEvent":
+                        if (isCuratedEvent(instance)) {
+                            Collection<GKInstance> orthologousAll = getCollectionFromGkInstance(instance, attribute);
+                            if (orthologousAll != null && !orthologousAll.isEmpty()) {
+                                Collection alreadyPointing = getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.inferredFrom);
+                                //orthologousEvents collection will only contain those that are not pointing to instance as inferredFrom to avoid inferredTo duplicates
+                                Collection orthologousEvents = new ArrayList();
+                                for (GKInstance orthologousEvent : orthologousAll) {
+                                    if (isGKInstanceInCollection(orthologousEvent, alreadyPointing)) {
+                                        if (!dbIds.containsKey(orthologousEvent.getDBID())) {
+                                            //The link is not added but it has to be imported to ensure the object (and link) are created
+                                            importGkInstance(orthologousEvent);
+                                        }
+                                    } else {
+                                        orthologousEvents.add(orthologousEvent);
+                                    }
+                                }
                                 //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
                                 saveRelationships(id, orthologousEvents, "inferredTo");
-                            } else {
-                                Collection referrers = getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.orthologousEvent);
-                                if (referrers != null && !referrers.isEmpty()) {
-                                    //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
-                                    saveRelationships(id, referrers, "inferredTo");
-                                    errorLogger.error("Entry has referred orthologous but no attribute orthologous: " + instance.getDBID() + " " + instance.getDisplayName());
-                                }
                             }
+                        }
+                        break;
+                    case "inferredFrom": //Only for Event because in PhysicalEntity is ReactomeTransient
+                        if (isValidGkInstanceAttribute(instance, attribute)) {
+                            Collection inferredFrom = getCollectionFromGkInstance(instance, attribute);
+                            saveRelationships(id, inferredFrom, "inferredToReverse");
+                        }
+                        break;
+                    case "inferredTo": //Only for PhysicalEntity
+                        if (isValidGkInstanceAttribute(instance, attribute)) {
+                            Collection inferredTo = getCollectionFromGkInstance(instance, attribute);
+                            if (inferredTo == null || inferredTo.isEmpty()) {
+                                inferredTo = getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.inferredFrom);
+                            }
+                            saveRelationships(id, inferredTo, attribute);
                         }
                         break;
                     default:
@@ -199,7 +210,6 @@ public class ReactomeBatchImporter {
                             //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
                             saveRelationships(id, getCollectionFromGkInstance(instance, attribute), attribute);
                         }
-                        break;
                 }
             }
         }
@@ -270,7 +280,7 @@ public class ReactomeBatchImporter {
                         if (version != null) properties.put("stIdVersion", stId + "." + version);
                         //Keeping old stable identifier if present
                         String oldStId = (String) getObjectFromGkInstance(stableIdentifier, "oldIdentifier");
-                        if (oldStId != null ) {
+                        if (oldStId != null) {
                             if (oldStId.isEmpty()) { //Avoids adding empty OLD_STID in the graph database
                                 errorLogger.warn("'" + OLD_STID + "' is empty for " + instance.getDBID() + ": " + instance.getDisplayName());
                             } else {
@@ -288,10 +298,10 @@ public class ReactomeBatchImporter {
                     case TAXONOMY_ID:
                         GKInstance taxon = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
                         String taxId = taxon != null ? (String) getObjectFromGkInstance(taxon, ReactomeJavaConstants.identifier) : null;
-                        if (taxId == null || taxId.isEmpty()) {
-                            errorLogger.warn("'" + TAXONOMY_ID + "' cannot be set for " + instance.getDBID() + ": " + instance.getDisplayName());
-                        } else {
+                        if (taxId != null && !taxId.isEmpty()) {
                             properties.put(attribute, taxId);
+                        } else if (!instance.getDBID().equals(TAXONOMY_ROOT)) {
+                            errorLogger.warn("'" + TAXONOMY_ID + "' cannot be set for " + instance.getDBID() + ": " + instance.getDisplayName());
                         }
                         break;
                     case "hasDiagram":
@@ -560,9 +570,9 @@ public class ReactomeBatchImporter {
      * Simple wrapper for creating an index
      *
      * @param clazz specific Class
-     * @param name fieldName
+     * @param name  fieldName
      */
-    private static void createDeferredSchemaIndex(Class clazz, String name){
+    private static void createDeferredSchemaIndex(Class clazz, String name) {
         try {
             batchInserter.createDeferredSchemaIndex(Label.label(clazz.getSimpleName())).on(name).create();
         } catch (Throwable e) {
@@ -647,12 +657,13 @@ public class ReactomeBatchImporter {
     /**
      * Gets all Fields for specific Class in order to create attribute map.
      * Annotations are used to differentiate attributes:
-     *      @Relationship is used to indicate a relationship that should be saved to the graph
-     *      @Transient is used for relationships that should not be persisted by the graph
-     *      @ReactomeTransient is used for all entries that can not be filled by the GkInstance automatically
-     *      Not annotated fields will be treated as primitive attributes (String, Long, List<String>...)
-     *      Twice annotated fields will not be filled by the GkInstance
+     *
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
+     * @Relationship is used to indicate a relationship that should be saved to the graph
+     * @Transient is used for relationships that should not be persisted by the graph
+     * @ReactomeTransient is used for all entries that can not be filled by the GkInstance automatically
+     * Not annotated fields will be treated as primitive attributes (String, Long, List<String>...)
+     * Twice annotated fields will not be filled by the GkInstance
      */
     @SuppressWarnings("JavaDoc")
     private void setUpFields(Class clazz) {
@@ -774,5 +785,24 @@ public class ReactomeBatchImporter {
                     + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
         }
         return null;
+    }
+
+    private Boolean isGKInstanceInCollection(GKInstance instance, Collection collection) {
+        try {
+            for (Object o : collection) {
+                GKInstance gkInstance = (GKInstance) o;
+                if (gkInstance.getDBID().equals(instance.getDBID())) return true;
+            }
+        } catch (Exception e) { /* Nothing here */ }
+        return false;
+    }
+
+    private Boolean isCuratedEvent(GKInstance instance) {
+        try {
+            return instance.getAttributeValue("_doRelease") != null;
+        } catch (Exception e) {
+            errorLogger.error(e.getMessage());
+        }
+        return false;
     }
 }
