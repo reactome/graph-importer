@@ -242,7 +242,7 @@ public class ReactomeBatchImporter {
          * We save those two the "hard" way
          */
         Map<String, Object> properties = new HashMap<>();
-        properties.put("simpleLabel", schemaClass);
+        properties.put("schemaClass", schemaClass);
         properties.put(DBID, instance.getDBID());
         if (instance.getDisplayName() != null) {
             // TO fix Different Styles in Person display Name (example Jupe, Steven or Jupe, S)
@@ -744,7 +744,7 @@ public class ReactomeBatchImporter {
             try {
                 return instance.getAttributeValue(attribute);
             } catch (Exception e) {
-                errorLogger.error("An error occurred when trying to retrieve an attribute from instance with DbId:"
+                errorLogger.error("An error occurred when trying to retrieve the '" + attribute + "' from instance with DbId:"
                         + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
             }
         }
@@ -763,7 +763,7 @@ public class ReactomeBatchImporter {
             try {
                 return instance.getAttributeValuesList(attribute);
             } catch (Exception e) {
-                errorLogger.error("An error occurred when trying to retrieve attributes from instance with DbId:"
+                errorLogger.error("An error occurred when trying to retrieve the '" + attribute + "' from instance with DbId:"
                         + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
             }
         }
@@ -781,7 +781,7 @@ public class ReactomeBatchImporter {
         try {
             return instance.getReferers(attribute);
         } catch (Exception e) {
-            errorLogger.error("An error occurred when trying to retrieve referrals from instance with DbId:"
+            errorLogger.error("An error occurred when trying to retrieve referrals for '" + attribute + "' from instance with DbId:"
                     + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
         }
         return null;
