@@ -37,7 +37,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <reactome.graph.core>1.1.2</reactome.graph.core>
+        <reactome.graph.core>1.1.3-SNAPSHOT</reactome.graph.core>
         <reactome.base>1.2.8</reactome.base>
         <neo4j.version>3.2.3</neo4j.version>
     </properties>

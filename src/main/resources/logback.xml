@@ -49,6 +49,17 @@
         </encoder>
     </appender>
 
+    <appender name="CONSISTENCY_REPORT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>./logs/data-import-consistency-%d{yyyy-MM-dd}.csv</fileNamePattern>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            <maxHistory>-1</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
     <logger name="deng" level="DEBUG"/>
 
     <logger name="import" level="INFO">
@@ -57,6 +68,10 @@
 
     <logger name="import_error" level="WARN">
         <appender-ref ref="IMPORT_ERROR"/>
+    </logger>
+
+    <logger name="consistency_report" level="WARN">
+        <appender-ref ref="CONSISTENCY_REPORT"/>
     </logger>
 
     <root level="INFO">
