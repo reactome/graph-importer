@@ -1,6 +1,34 @@
+# eclipse specific git ignore
+*.pydevproject
+.project
+.metadata
+bin/**
+tmp/**
+tmp/**/*
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.classpath
+.settings/
+.loadpath
+
+# Locally stored "Eclipse launch configurations"
+*.launch
+
 # intelliJ idea git ignore
 *.iml
-*.idea
-*.log
+.idea
+
 *target*
-*.txt
+*.jar
+*.war
+*.ear
+*.class
+
+logs
+reports
+
+# DS Store
+.DS_Store
