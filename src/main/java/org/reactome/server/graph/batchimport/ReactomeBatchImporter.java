@@ -27,6 +27,7 @@ import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class ReactomeBatchImporter {
 
@@ -80,6 +81,7 @@ public class ReactomeBatchImporter {
     }
 
     public void importAll(boolean barComplete) throws IOException {
+        Long start = System.currentTimeMillis();
         prepareDatabase();
         try {
             List<GKInstance> tlps = getTopLevelPathways();
@@ -89,11 +91,11 @@ public class ReactomeBatchImporter {
             addDbInfo();
 
             for (GKInstance instance : tlps) {
-                long start = System.currentTimeMillis();
+                long instanceStart = System.currentTimeMillis();
                 if (!dbIds.containsKey(instance.getDBID())) {
                     importGkInstance(instance);
                 }
-                long elapsedTime = System.currentTimeMillis() - start;
+                long elapsedTime = System.currentTimeMillis() - instanceStart;
                 int ms = (int) elapsedTime % 1000;
                 int sec = (int) (elapsedTime / 1000) % 60;
                 int min = (int) ((elapsedTime / (1000 * 60)) % 60);
@@ -105,10 +107,11 @@ public class ReactomeBatchImporter {
         }
         printConsistencyCheckReport();
         importLogger.info("Storing the graph");
-        System.out.println("\n\nPlease wait while storing the graph...");
+        System.out.println("\nPlease wait while storing the graph...");
         batchInserter.shutdown();
         importLogger.info("All top level pathways have been imported to Neo4j");
-        System.out.println("\rAll top level pathways have been imported to Neo4j");
+        Long time = System.currentTimeMillis() - start;
+        System.out.println("\rAll top level pathways have been imported to Neo4j (" + getTimeFormatted(time) + ")");
 
     }
 
@@ -882,7 +885,7 @@ public class ReactomeBatchImporter {
     private void printConsistencyCheckReport(){
         if(consistencyLoggerEntries == 0) return;
 
-        String message = String.format("\nThe consistency check finished reporting %,d as follows:", consistencyLoggerEntries);
+        String message = String.format("\n\nThe consistency check finished reporting %,d as follows:", consistencyLoggerEntries);
         List<String> lines = new ArrayList<>();
         consistency.forEach((className, attributes) ->
                 attributes.forEach((attribute, instances) ->
@@ -897,5 +900,11 @@ public class ReactomeBatchImporter {
         //Also keep in the log file (just in case)
         importLogger.info(message);
         lines.forEach(importLogger::info);
+    }
+
+    private static String getTimeFormatted(Long millis) {
+        return String.format("%02d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(millis),
+                TimeUnit.MILLISECONDS.toMinutes(millis) % TimeUnit.HOURS.toMinutes(1),
+                TimeUnit.MILLISECONDS.toSeconds(millis) % TimeUnit.MINUTES.toSeconds(1));
     }
 }
