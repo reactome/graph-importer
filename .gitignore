@@ -29,6 +29,10 @@ local.properties
 
 logs
 reports
+parser-messages.txt
+
+#SQLit memory
+:memory
 
 # DS Store
 .DS_Store

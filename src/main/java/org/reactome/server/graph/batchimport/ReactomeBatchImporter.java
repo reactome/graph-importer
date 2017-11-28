@@ -1,6 +1,7 @@
 package org.reactome.server.graph.batchimport;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.ClassUtils;
 import org.apache.commons.lang.IllegalClassException;
 import org.gk.model.GKInstance;
@@ -13,6 +14,7 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.ogm.annotation.Relationship;
 import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
+import org.reactome.server.graph.Main;
 import org.reactome.server.graph.domain.annotations.ReactomeProperty;
 import org.reactome.server.graph.domain.annotations.ReactomeRelationship;
 import org.reactome.server.graph.domain.annotations.ReactomeTransient;
@@ -23,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -47,8 +50,8 @@ public class ReactomeBatchImporter {
     private static final String ACCESSION = "identifier";
     private static final String NAME = "displayName";
 
-    private static final String STOICHIOMETRY = "stoichiometry";
-    private static final String ORDER = "order";
+    static final String STOICHIOMETRY = "stoichiometry";
+    static final String ORDER = "order";
 
     private static final Map<Class, List<ReactomeAttribute>> primitiveAttributesMap = new HashMap<>();
     private static final Map<Class, List<ReactomeAttribute>> primitiveListAttributesMap = new HashMap<>();
@@ -66,10 +69,18 @@ public class ReactomeBatchImporter {
 
     private static final DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-    public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j) {
+    private Set<String> trivialMolecules;
+
+    private Long maxDbId;
+
+    private InteractionImporter interactionImporter;
+
+    public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j, boolean includeInteractors) {
         try {
             DATA_DIR = neo4j;
             dba = new MySQLAdaptor(host, name, user, password, port);
+            maxDbId = dba.fetchMaxDbId();
+
             total = (int) dba.getClassInstanceCount(ReactomeJavaConstants.DatabaseObject);
             total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants.StableIdentifier);
             total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants.PathwayDiagramItem);
@@ -78,6 +89,23 @@ public class ReactomeBatchImporter {
         } catch (SQLException | InvalidClassException e) {
             importLogger.error("An error occurred while connection to the Reactome database", e);
         }
+
+        //Getting the trivial molecules list in order to enrich the ReferenceMolecule objects while creating the graph
+        try {
+            System.out.print("Retrieving the trivial molecules list...");
+            importLogger.info("Retrieving the trivial molecules list");
+            trivialMolecules = new HashSet<>();
+            ClassLoader loader = Main.class.getClassLoader();
+            for (String line : IOUtils.toString(loader.getResourceAsStream("trivialMolecules.txt"), Charset.defaultCharset()).split("\n")) {
+                trivialMolecules.add(line.split("\t")[0]);
+            }
+            importLogger.info("Trivial molecules list successfully retrieved");
+            System.out.println("\rTrivial molecules list successfully retrieved.");
+        } catch (IOException e) {
+            importLogger.error("An error occurred while retrieving the trivial molecules", e);
+        }
+
+        if(includeInteractors) interactionImporter = new InteractionImporter(dba);
     }
 
     public void importAll(boolean barComplete) throws IOException {
@@ -105,6 +133,9 @@ public class ReactomeBatchImporter {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        if(interactionImporter != null) interactionImporter.addInteractionData(dbIds, batchInserter, maxDbId);
+
         printConsistencyCheckReport();
         importLogger.info("Storing the graph");
         System.out.println("\nPlease wait while storing the graph...");
@@ -323,7 +354,12 @@ public class ReactomeBatchImporter {
                                 DiagramGeneratorFromDB diagramHelper = new DiagramGeneratorFromDB();
                                 diagramHelper.setMySQLAdaptor((MySQLAdaptor) instance.getDbAdaptor());
                                 GKInstance diagram = diagramHelper.getPathwayDiagram(instance);
-                                properties.put(attribute, diagram != null);
+                                boolean hasDiagram = diagram != null;
+                                properties.put(attribute, hasDiagram);
+                                if(hasDiagram){
+                                    properties.put("diagramWidth", getObjectFromGkInstance(diagram, "width"));
+                                    properties.put("diagramHeight", getObjectFromGkInstance(diagram, "height"));
+                                }
                             } catch (Exception e) {
                                 errorLogger.error("An exception occurred while trying to retrieve a diagram from entry with dbId: " +
                                         instance.getDBID() + "and name: " + instance.getDisplayName());
@@ -351,10 +387,15 @@ public class ReactomeBatchImporter {
                         GKInstance species = (GKInstance) speciesList.get(0);
                         properties.put(attribute, species.getDisplayName());
                         break;
+                    case "trivial":
+                        String chebiId = (String) getObjectFromGkInstance(instance, "identifier");
+                        properties.put(attribute, chebiId != null && trivialMolecules.contains(chebiId));
+                        break;
                     case "url":
                         if (!instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceDatabase) && !instance.getSchemClass().isa(ReactomeJavaConstants.Figure)) {
                             GKInstance referenceDatabase = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.referenceDatabase);
                             if (referenceDatabase == null) continue;
+                            String databaseName = referenceDatabase.getDisplayName();
                             String identifier;
                             if (instance.getSchemClass().isa(ReactomeJavaConstants.GO_BiologicalProcess) || instance.getSchemClass().isa(ReactomeJavaConstants.GO_MolecularFunction) || instance.getSchemClass().isa(ReactomeJavaConstants.GO_CellularComponent)) {
                                 identifier = (String) getObjectFromGkInstance(instance, ReactomeJavaConstants.accession);
@@ -364,11 +405,14 @@ public class ReactomeBatchImporter {
                                 } else {
                                     identifier = (String) getObjectFromGkInstance(instance, ReactomeJavaConstants.identifier);
                                 }
+                                if (interactionImporter != null) interactionImporter.addReferenceEntity(identifier, instance);
                             }
                             String url = (String) getObjectFromGkInstance(referenceDatabase, ReactomeJavaConstants.accessUrl);
                             if (url == null || identifier == null) continue;
-                            properties.put("databaseName", referenceDatabase.getDisplayName());
+
+                            properties.put("databaseName", databaseName);
                             properties.put(attribute, url.replace("###ID###", identifier));
+
                             break;
                         }
                     default: //Here we are in a none graph-added field. The field content has to be treated based on the schema definition
@@ -473,7 +517,7 @@ public class ReactomeBatchImporter {
         }
     }
 
-    private void saveRelationship(Long toId, Long fromId, RelationshipType relationshipType, Map<String, Object> properties) {
+    static void saveRelationship(Long toId, Long fromId, RelationshipType relationshipType, Map<String, Object> properties) {
         String relationName = relationshipType.name();
         switch (relationName) {
             case "reverseReaction":
@@ -640,7 +684,7 @@ public class ReactomeBatchImporter {
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
      * @return Array of Neo4j SchemaClassCount
      */
-    private Label[] getLabels(Class clazz) {
+    static Label[] getLabels(Class clazz) {
 
         if (!labelMap.containsKey(clazz)) {
             Label[] labels = getAllClassNames(clazz);
@@ -657,7 +701,7 @@ public class ReactomeBatchImporter {
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
      * @return Array of Neo4j SchemaClassCount
      */
-    private Label[] getAllClassNames(Class clazz) {
+    private static Label[] getAllClassNames(Class clazz) {
         List<?> superClasses = ClassUtils.getAllSuperclasses(clazz);
         List<Label> labels = new ArrayList<>();
         labels.add(Label.label(clazz.getSimpleName()));
@@ -744,7 +788,7 @@ public class ReactomeBatchImporter {
      * @param attribute FieldName
      * @return boolean
      */
-    private boolean isValidGkInstanceAttribute(GKInstance instance, String attribute) {
+    private static boolean isValidGkInstanceAttribute(GKInstance instance, String attribute) {
         if (instance.getSchemClass().isValidAttribute(attribute)) {
             return true;
         }
@@ -759,7 +803,7 @@ public class ReactomeBatchImporter {
      * @param attribute FieldName
      * @return Object
      */
-    private Object getObjectFromGkInstance(GKInstance instance, String attribute) {
+    static Object getObjectFromGkInstance(GKInstance instance, String attribute) {
         if (isValidGkInstanceAttribute(instance, attribute)) {
             try {
                 return instance.getAttributeValue(attribute);

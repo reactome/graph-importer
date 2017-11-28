@@ -36,9 +36,10 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <reactome.graph.core>1.1.4</reactome.graph.core>
+        <reactome.graph.core>1.1.5-SNAPSHOT</reactome.graph.core>
         <reactome.base>1.2.9</reactome.base>
-        <neo4j.version>3.2.7</neo4j.version>
+        <neo4j.version>3.3.0</neo4j.version>
+        <interactor-core>1.0.12-SNAPSHOT</interactor-core>
     </properties>
 
     <dependencies>
@@ -70,6 +71,12 @@
             <groupId>com.martiansoftware</groupId>
             <artifactId>jsap</artifactId>
             <version>2.1</version>
+        </dependency>
+        <!-- SQLite JDBC -->
+        <dependency>
+            <groupId>org.reactome.server.interactors</groupId>
+            <artifactId>interactor-core</artifactId>
+            <version>${interactor-core}</version>
         </dependency>
         <!--Logback classic-->
         <dependency>
@@ -148,7 +155,7 @@
                 </executions>
             </plugin>
             <!--Concatenate all versions of org.neo4j.kernel.impl.api.scan.NativeLabelScanStoreExtension from different jars with the same name-->
-            <plugin>
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.1.0</version>
@@ -190,7 +197,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin>-->
         </plugins>
     </build>
 </project>
