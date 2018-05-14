@@ -31,8 +31,9 @@ logs
 reports
 parser-messages.txt
 
-#SQLit memory
-:memory
+#SQLit
+interaction-data.tmp.db
+interaction-data.tmp.db-journal
 
 # DS Store
 .DS_Store

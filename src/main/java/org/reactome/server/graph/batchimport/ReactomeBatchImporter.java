@@ -4,9 +4,10 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.ClassUtils;
 import org.apache.commons.lang.IllegalClassException;
+import org.apache.commons.lang.StringUtils;
 import org.gk.model.GKInstance;
 import org.gk.model.ReactomeJavaConstants;
-import org.gk.pathwaylayout.DiagramGeneratorFromDB;
+import org.gk.pathwaylayout.PathwayDiagramXMLGenerator;
 import org.gk.persistence.MySQLAdaptor;
 import org.gk.schema.InvalidClassException;
 import org.neo4j.graphdb.Label;
@@ -19,6 +20,8 @@ import org.reactome.server.graph.domain.annotations.ReactomeProperty;
 import org.reactome.server.graph.domain.annotations.ReactomeRelationship;
 import org.reactome.server.graph.domain.annotations.ReactomeTransient;
 import org.reactome.server.graph.domain.model.*;
+import org.reactome.server.graph.interactors.InteractionImporter;
+import org.reactome.server.graph.utils.GKInstanceHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +33,8 @@ import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
+
+import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
 
 public class ReactomeBatchImporter {
 
@@ -47,35 +51,38 @@ public class ReactomeBatchImporter {
     private static final String OLD_STID = "oldStId";
     private static final Long TAXONOMY_ROOT = 164487L;
     private static final String TAXONOMY_ID = "taxId";
-    private static final String ACCESSION = "identifier";
+    private static final String IDENTIFIER = "identifier";
+    private static final String VARIANT_IDENTIFIER = "variantIdentifier";
     private static final String NAME = "displayName";
 
-    static final String STOICHIOMETRY = "stoichiometry";
-    static final String ORDER = "order";
+    public static final String STOICHIOMETRY = "stoichiometry";
+    public static final String ORDER = "order";
 
     private static final Map<Class, List<ReactomeAttribute>> primitiveAttributesMap = new HashMap<>();
     private static final Map<Class, List<ReactomeAttribute>> primitiveListAttributesMap = new HashMap<>();
     private static final Map<Class, List<ReactomeAttribute>> relationAttributesMap = new HashMap<>();
 
-    private static final Map<Class, Label[]> labelMap = new HashMap<>();
+    public static Long maxDbId;
     private static final Map<Long, Long> dbIds = new HashMap<>();
+    private static final Set<Long> discarded = new HashSet<>();
     private static final Map<Long, Long> reverseReactions = new HashMap<>();
     private static final Map<Long, Long> equivalentTo = new HashMap<>();
+    private static final Map<Class, Label[]> labelMap = new HashMap<>();
+    private static final Map<Integer, Long> taxIdDbId = new HashMap<>();
 
     private static final Set<Long> topLevelPathways = new HashSet<>();
 
-    private static final int width = 70;
     private static int total;
+    private static final int width = 70;
 
     private static final DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private Set<String> trivialMolecules;
-
-    private Long maxDbId;
-
     private InteractionImporter interactionImporter;
+    private GKInstanceHelper gkInstanceHelper;
 
-    public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j, boolean includeInteractors) {
+    public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j,
+                                 boolean includeInteractors, String interactorsFile) {
         try {
             DATA_DIR = neo4j;
             dba = new MySQLAdaptor(host, name, user, password, port);
@@ -85,6 +92,7 @@ public class ReactomeBatchImporter {
             total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants.StableIdentifier);
             total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants.PathwayDiagramItem);
             total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants.ReactionCoordinates);
+            total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants._Release);
             importLogger.info("Established connection to Reactome database");
         } catch (SQLException | InvalidClassException e) {
             importLogger.error("An error occurred while connection to the Reactome database", e);
@@ -105,7 +113,8 @@ public class ReactomeBatchImporter {
             importLogger.error("An error occurred while retrieving the trivial molecules", e);
         }
 
-        if(includeInteractors) interactionImporter = new InteractionImporter(dba);
+        if(includeInteractors) interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile);
+        gkInstanceHelper = new GKInstanceHelper(dba);
     }
 
     public void importAll(boolean barComplete) throws IOException {
@@ -134,9 +143,10 @@ public class ReactomeBatchImporter {
             e.printStackTrace();
         }
 
-        if(interactionImporter != null) interactionImporter.addInteractionData(dbIds, batchInserter, maxDbId);
+        if(interactionImporter != null) interactionImporter.addInteractionData(batchInserter);
 
         printConsistencyCheckReport();
+
         importLogger.info("Storing the graph");
         System.out.println("\nPlease wait while storing the graph...");
         batchInserter.shutdown();
@@ -183,8 +193,7 @@ public class ReactomeBatchImporter {
      */
     @SuppressWarnings("unchecked")
     private Long importGkInstance(GKInstance instance) throws ClassNotFoundException {
-
-        if (dbIds.size() != 0 && dbIds.size() % 100 == 0) updateProgressBar(dbIds.size());
+        updateProgressBar(dbIds.size() + discarded.size());
 
         String clazzName = DatabaseObject.class.getPackage().getName() + "." + instance.getSchemClass().getName();
         Class clazz = Class.forName(clazzName);
@@ -197,16 +206,6 @@ public class ReactomeBatchImporter {
                 String attribute = reactomeAttribute.getAttribute();
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
                 switch (attribute) {
-                    case "regulatedBy":
-                        /*
-                         * Only one type of regulation is needed here, In the native data import only regulatedBy exists
-                         * since the type of regulation is later determined by the Object Type we can only save one
-                         * otherwise relationships will be duplicated
-                         * if event will break otherwise (physical entity will fall to default
-                         */
-                        //saveRelations4hips might enter in recursion so changes in "positivelyRegulatedBy" have to be carefully thought
-                        saveRelationships(id, getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.regulatedEntity), attribute);
-                        break;
                     case "orthologousEvent":
                         if (isCuratedEvent(instance)) {
                             Collection<GKInstance> orthologousAll = getCollectionFromGkInstance(instance, attribute);
@@ -242,6 +241,33 @@ public class ReactomeBatchImporter {
                                 inferredTo = getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.inferredFrom);
                             }
                             saveRelationships(id, inferredTo, attribute);
+                        }
+                        break;
+                    case "hasEncapsulatedEvent":
+                        GKInstance normalPathway = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.normalPathway);
+                        if (normalPathway == null) { //No encapsulation is taken into account for none infectious disease pathways
+                            try {
+                                GKInstance diagram = gkInstanceHelper.getHasDiagram(instance);
+                                if (diagram != null) {
+                                    PathwayDiagramXMLGenerator xmlGenerator = new PathwayDiagramXMLGenerator();
+                                    String xml = xmlGenerator.generateXMLForPathwayDiagram(diagram, instance);
+                                    Collection encapsulatedEvents = new HashSet();
+                                    for (String line : StringUtils.split(xml, System.lineSeparator())) {
+
+                                        if (line.trim().startsWith("<org.gk.render.ProcessNode") && line.contains("reactomeId")) {
+                                            String dbId = line.split("reactomeId=\"")[1].split("\"")[0];
+                                            GKInstance target = dba.fetchInstance(Long.valueOf(dbId));
+                                            if (!gkInstanceHelper.pathwayContainsProcessNode(instance, target)) {
+                                                encapsulatedEvents.add(target);
+                                            }
+                                        }
+                                    }
+                                    diagram.deflate();
+                                    saveRelationships(id, encapsulatedEvents, attribute);
+                                }
+                            } catch (Exception e) {
+                                errorLogger.error("An exception occurred while trying to retrieve a diagram from entry with dbId: " + instance.getDBID() + "and name: " + instance.getDisplayName());
+                            }
                         }
                         break;
                     default:
@@ -343,28 +369,22 @@ public class ReactomeBatchImporter {
                         GKInstance taxon = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
                         String taxId = taxon != null ? (String) getObjectFromGkInstance(taxon, ReactomeJavaConstants.identifier) : null;
                         if (taxId != null && !taxId.isEmpty()) {
+                            taxIdDbId.put(Integer.valueOf(taxId), instance.getDBID());
                             properties.put(attribute, taxId);
                         } else if (!instance.getDBID().equals(TAXONOMY_ROOT)) {
                             errorLogger.warn("'" + TAXONOMY_ID + "' cannot be set for " + instance.getDBID() + ": " + instance.getDisplayName());
                         }
                         break;
                     case "hasDiagram":
-                        if (instance.getDbAdaptor() instanceof MySQLAdaptor) {
-                            try {
-                                DiagramGeneratorFromDB diagramHelper = new DiagramGeneratorFromDB();
-                                diagramHelper.setMySQLAdaptor((MySQLAdaptor) instance.getDbAdaptor());
-                                GKInstance diagram = diagramHelper.getPathwayDiagram(instance);
-                                boolean hasDiagram = diagram != null;
-                                properties.put(attribute, hasDiagram);
-                                if(hasDiagram){
-                                    properties.put("diagramWidth", getObjectFromGkInstance(diagram, "width"));
-                                    properties.put("diagramHeight", getObjectFromGkInstance(diagram, "height"));
-                                }
-                            } catch (Exception e) {
-                                errorLogger.error("An exception occurred while trying to retrieve a diagram from entry with dbId: " +
-                                        instance.getDBID() + "and name: " + instance.getDisplayName());
-                            }
+                        GKInstance diagram = gkInstanceHelper.getHasDiagram(instance);
+                        boolean hasDiagram = diagram != null;
+                        properties.put(attribute, hasDiagram);
+                        if(hasDiagram){
+                            properties.put("diagramWidth", getObjectFromGkInstance(diagram, "width"));
+                            properties.put("diagramHeight", getObjectFromGkInstance(diagram, "height"));
+                            diagram.deflate();
                         }
+                        properties.put(attribute, hasDiagram);
                         break;
                     case "isInDisease":
                         GKInstance disease = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.disease);
@@ -405,7 +425,6 @@ public class ReactomeBatchImporter {
                                 } else {
                                     identifier = (String) getObjectFromGkInstance(instance, ReactomeJavaConstants.identifier);
                                 }
-                                if (interactionImporter != null) interactionImporter.addReferenceEntity(identifier, instance);
                             }
                             String url = (String) getObjectFromGkInstance(referenceDatabase, ReactomeJavaConstants.accessUrl);
                             if (url == null || identifier == null) continue;
@@ -474,6 +493,8 @@ public class ReactomeBatchImporter {
                 Date latestDate = formatter.parse((String) getObjectFromGkInstance(latestModified, ReactomeJavaConstants.dateTime));
                 for (Object object : objects) {
                     GKInstance gkInstance = (GKInstance) object;
+                    //All go to discarded and the chosen one will be removed
+                    if(!dbIds.containsKey(gkInstance.getDBID())) discarded.add(gkInstance.getDBID());
                     Date date = formatter.parse((String) getObjectFromGkInstance(gkInstance, ReactomeJavaConstants.dateTime));
                     if (latestDate.before(date)) {
                         latestDate = date;
@@ -483,6 +504,7 @@ public class ReactomeBatchImporter {
                 objects.clear();
                 //noinspection unchecked
                 objects.add(latestModified);
+                discarded.remove(latestModified.getDBID());
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -517,7 +539,7 @@ public class ReactomeBatchImporter {
         }
     }
 
-    static void saveRelationship(Long toId, Long fromId, RelationshipType relationshipType, Map<String, Object> properties) {
+    public static void saveRelationship(Long toId, Long fromId, RelationshipType relationshipType, Map<String, Object> properties) {
         String relationName = relationshipType.name();
         switch (relationName) {
             case "reverseReaction":
@@ -609,7 +631,12 @@ public class ReactomeBatchImporter {
         createDeferredSchemaIndex(Person.class, "orcidId");
 
         createDeferredSchemaIndex(LiteratureReference.class, "pubMedIdentifier");
-        createDeferredSchemaIndex(ReferenceEntity.class, ACCESSION);
+        createDeferredSchemaIndex(ReferenceEntity.class, IDENTIFIER);
+        createDeferredSchemaIndex(ReferenceEntity.class, VARIANT_IDENTIFIER);
+
+        //This is needed
+        createDeferredSchemaIndex(ReferenceIsoform.class, IDENTIFIER);
+        createDeferredSchemaIndex(ReferenceIsoform.class, VARIANT_IDENTIFIER);
     }
 
     /**
@@ -648,16 +675,18 @@ public class ReactomeBatchImporter {
      * @param done Number of entries added to the graph
      */
     private void updateProgressBar(int done) {
-        String format = "\r%3d%% %s %c";
-        char[] rotators = {'|', '/', '—', '\\'};
-        double percent = (double) done / total;
-        StringBuilder progress = new StringBuilder(width);
-        progress.append('|');
-        int i = 0;
-        for (; i < (int) (percent * width); i++) progress.append("=");
-        for (; i < width; i++) progress.append(" ");
-        progress.append('|');
-        System.out.printf(format, (int) (percent * 100), progress, rotators[((done - 1) % (rotators.length * 100)) / 100]);
+        if (done == total || (done > 0 && done % 100 == 0)) {
+            String format = "\r        Database import: %3d%% %s %c";
+            char[] rotators = {'|', '/', '—', '\\'};
+            double percent = (double) done / total;
+            StringBuilder progress = new StringBuilder(width);
+            progress.append('|');
+            int i = 0;
+            for (; i < (int) (percent * width); i++) progress.append("=");
+            for (; i < width; i++) progress.append(" ");
+            progress.append('|');
+            System.out.printf(format, (int) (percent * 100), progress, rotators[((done - 1) % (rotators.length * 100)) / 100]);
+        }
     }
 
     /**
@@ -684,7 +713,7 @@ public class ReactomeBatchImporter {
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
      * @return Array of Neo4j SchemaClassCount
      */
-    static Label[] getLabels(Class clazz) {
+    public static Label[] getLabels(Class clazz) {
 
         if (!labelMap.containsKey(clazz)) {
             Label[] labels = getAllClassNames(clazz);
@@ -803,7 +832,7 @@ public class ReactomeBatchImporter {
      * @param attribute FieldName
      * @return Object
      */
-    static Object getObjectFromGkInstance(GKInstance instance, String attribute) {
+    public static Object getObjectFromGkInstance(GKInstance instance, String attribute) {
         if (isValidGkInstanceAttribute(instance, attribute)) {
             try {
                 return instance.getAttributeValue(attribute);
@@ -882,13 +911,16 @@ public class ReactomeBatchImporter {
 
     private boolean isConsistent(GKInstance instance, Object value, String attribute, ReactomeAttribute.PropertyType type){
         boolean rtn = false;
+        if (type == null) return true;
         if (value == null) {
             if (!type.allowsNull) {
-                addConsistencyCheckEntry(instance.getSchemClass().getName(),attribute, type ,"null" ,instance.getDBID(), instance.getDisplayName());
+                if (TAXONOMY_ROOT.equals(instance.getDBID()))
+                    return true; //Do not report the TAXONOMY_ROOT missing superTaxon
+                addConsistencyCheckEntry(instance.getSchemClass().getName(), attribute, type, "null", instance.getDBID(), instance.getDisplayName());
             }
         } else if (value instanceof Collection ? ((Collection) value).isEmpty() : value.toString().isEmpty()) {
             if (!type.allowsEmpty) {
-                addConsistencyCheckEntry(instance.getSchemClass().getName(),attribute, type ,"empty" ,instance.getDBID(), instance.getDisplayName());
+                addConsistencyCheckEntry(instance.getSchemClass().getName(), attribute, type, "empty", instance.getDBID(), instance.getDisplayName());
             }
         } else {
             rtn = true;
@@ -928,13 +960,14 @@ public class ReactomeBatchImporter {
 
     private void printConsistencyCheckReport(){
         if(consistencyLoggerEntries == 0) return;
-
-        String message = String.format("\n\nThe consistency check finished reporting %,d as follows:", consistencyLoggerEntries);
+        String aux = consistencyLoggerEntries == 1 ? "entry" : "entries";
+        String message = String.format("\nThe consistency check finished reporting %,d %s as follows:", consistencyLoggerEntries, aux);
         List<String> lines = new ArrayList<>();
         consistency.forEach((className, attributes) ->
-                attributes.forEach((attribute, instances) ->
-                    lines.add(String.format("\t%,10d entries for (%s, %s)", instances.size(), className, attribute))
-                )
+                attributes.forEach((attribute, instances) -> {
+                    String entries = instances.size() == 1 ? "entry" : "entries";
+                    lines.add(String.format("\t%,10d %s for (%s, %s)", instances.size(), entries, className, attribute));
+                })
         );
         lines.sort(Collections.reverseOrder());
 
@@ -944,11 +977,5 @@ public class ReactomeBatchImporter {
         //Also keep in the log file (just in case)
         importLogger.info(message);
         lines.forEach(importLogger::info);
-    }
-
-    private static String getTimeFormatted(Long millis) {
-        return String.format("%02d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(millis),
-                TimeUnit.MILLISECONDS.toMinutes(millis) % TimeUnit.HOURS.toMinutes(1),
-                TimeUnit.MILLISECONDS.toSeconds(millis) % TimeUnit.MINUTES.toSeconds(1));
     }
 }
