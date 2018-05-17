@@ -40,8 +40,8 @@ public class ReactomeBatchImporter {
 
     private static final Logger importLogger = LoggerFactory.getLogger("import");
     private static final Logger errorLogger = LoggerFactory.getLogger("import_error");
-    private static final Logger importReportLogger = LoggerFactory.getLogger("import_report");
-    private static final Logger consistencyLogger = LoggerFactory.getLogger("consistency_report");
+    private static final Logger consistencyCheckSummaryLogger = LoggerFactory.getLogger("consistency_check_summary");
+    private static final Logger consistencyCheckReportLogger = LoggerFactory.getLogger("consistency_check_report");
 
     private static MySQLAdaptor dba;
     private static BatchInserter batchInserter;
@@ -953,9 +953,9 @@ public class ReactomeBatchImporter {
     private void addConsistencyCheckEntry(String className, String attribute, ReactomeAttribute.PropertyType type, String error, Long dbId, String displayName) {
         consistency.computeIfAbsent(className, k -> new HashMap<>()).computeIfAbsent(attribute, k-> new HashSet<>()).add(dbId);
         if (consistencyLoggerEntries == 0) {
-            consistencyLogger.error("SchemaClass,Attribute,Category,Error,DbId,DisplayName");
+            consistencyCheckReportLogger.error("SchemaClass,Attribute,Category,Error,DbId,DisplayName");
         }
-        consistencyLogger.error(String.format("%s,%s,%s,%s,%s,\"%s\"", className, attribute, type, error, dbId, displayName));
+        consistencyCheckReportLogger.error(String.format("%s,%s,%s,%s,%s,\"%s\"", className, attribute, type, error, dbId, displayName));
         consistencyLoggerEntries++;
     }
 
@@ -977,7 +977,7 @@ public class ReactomeBatchImporter {
         lines.forEach(System.out::println);
 
         //Also keep in the log file (just in case)
-        importReportLogger.info(message);
-        lines.forEach(importReportLogger::info);
+        consistencyCheckSummaryLogger.info(message);
+        lines.forEach(consistencyCheckSummaryLogger::info);
     }
 }
