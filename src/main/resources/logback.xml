@@ -38,6 +38,17 @@
         </encoder>
     </appender>
 
+    <appender name="IMPORT_REPORT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>./logs/data-import-report-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            <maxHistory>-1</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
     <appender name="IMPORT_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>./logs/data-import-error-%d{yyyy-MM-dd}.log</fileNamePattern>
@@ -63,24 +74,14 @@
         <appender-ref ref="CONSISTENCY_REPORT"/>
     </logger>
 
-    <appender name="MISSING_OBJECTS_REPORT" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>./logs/Unconnected_Objects-%d{yyyy-MM-dd}.csv</fileNamePattern>
-            <cleanHistoryOnStart>true</cleanHistoryOnStart>
-            <maxHistory>-1</maxHistory>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%msg%n</pattern>
-        </encoder>
-    </appender>
-    <logger name="missing_objects_report" level="WARN">
-        <appender-ref ref="MISSING_OBJECTS_REPORT"/>
-    </logger>
-
     <logger name="deng" level="DEBUG"/>
 
     <logger name="import" level="INFO">
         <appender-ref ref="IMPORT"/>
+    </logger>
+
+    <logger name="import_report" level="INFO">
+        <appender-ref ref="IMPORT_REPORT"/>
     </logger>
 
     <logger name="import_error" level="WARN">

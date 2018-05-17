@@ -38,8 +38,9 @@ import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
 
 public class ReactomeBatchImporter {
 
-    private static final Logger errorLogger = LoggerFactory.getLogger("import_error");
     private static final Logger importLogger = LoggerFactory.getLogger("import");
+    private static final Logger errorLogger = LoggerFactory.getLogger("import_error");
+    private static final Logger importReportLogger = LoggerFactory.getLogger("import_report");
     private static final Logger consistencyLogger = LoggerFactory.getLogger("consistency_report");
 
     private static MySQLAdaptor dba;
@@ -961,7 +962,7 @@ public class ReactomeBatchImporter {
     private void printConsistencyCheckReport(){
         if(consistencyLoggerEntries == 0) return;
         String aux = consistencyLoggerEntries == 1 ? "entry" : "entries";
-        String message = String.format("\nThe consistency check finished reporting %,d %s as follows:", consistencyLoggerEntries, aux);
+        String message = String.format("The consistency check finished reporting %,d %s as follows:", consistencyLoggerEntries, aux);
         List<String> lines = new ArrayList<>();
         consistency.forEach((className, attributes) ->
                 attributes.forEach((attribute, instances) -> {
@@ -971,11 +972,12 @@ public class ReactomeBatchImporter {
         );
         lines.sort(Collections.reverseOrder());
 
+        System.out.println();
         System.out.println(message);
         lines.forEach(System.out::println);
 
         //Also keep in the log file (just in case)
-        importLogger.info(message);
-        lines.forEach(importLogger::info);
+        importReportLogger.info(message);
+        lines.forEach(importReportLogger::info);
     }
 }
