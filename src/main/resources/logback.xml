@@ -38,17 +38,6 @@
         </encoder>
     </appender>
 
-    <appender name="IMPORT_REPORT" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>./logs/data-import-report-%d{yyyy-MM-dd}.log</fileNamePattern>
-            <cleanHistoryOnStart>true</cleanHistoryOnStart>
-            <maxHistory>-1</maxHistory>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%msg%n</pattern>
-        </encoder>
-    </appender>
-
     <appender name="IMPORT_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>./logs/data-import-error-%d{yyyy-MM-dd}.log</fileNamePattern>
@@ -60,9 +49,10 @@
         </encoder>
     </appender>
 
-    <appender name="CONSISTENCY_REPORT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+
+    <appender name="CONSISTENCY_CHECK_REPORT" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>./logs/Data_Consistency_Check-%d{yyyy-MM-dd}.csv</fileNamePattern>
+            <fileNamePattern>./logs/DataConsistencyCheck_Report-%d{yyyy-MM-dd}.csv</fileNamePattern>
             <cleanHistoryOnStart>true</cleanHistoryOnStart>
             <maxHistory>-1</maxHistory>
         </rollingPolicy>
@@ -70,9 +60,18 @@
             <pattern>%msg%n</pattern>
         </encoder>
     </appender>
-    <logger name="consistency_report" level="WARN">
-        <appender-ref ref="CONSISTENCY_REPORT"/>
-    </logger>
+
+
+    <appender name="CONSISTENCY_CHECK_SUMMARY" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>./logs/DataConsistencyCheck_Summary-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            <maxHistory>-1</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
 
     <logger name="deng" level="DEBUG"/>
 
@@ -80,12 +79,16 @@
         <appender-ref ref="IMPORT"/>
     </logger>
 
-    <logger name="import_report" level="INFO">
-        <appender-ref ref="IMPORT_REPORT"/>
-    </logger>
-
     <logger name="import_error" level="WARN">
         <appender-ref ref="IMPORT_ERROR"/>
+    </logger>
+
+    <logger name="consistency_check_report" level="INFO">
+        <appender-ref ref="CONSISTENCY_CHECK_REPORT"/>
+    </logger>
+
+    <logger name="consistency_check_summary" level="INFO">
+        <appender-ref ref="CONSISTENCY_CHECK_SUMMARY"/>
     </logger>
 
     <root level="INFO">
