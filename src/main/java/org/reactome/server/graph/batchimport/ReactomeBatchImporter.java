@@ -29,6 +29,9 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -122,12 +125,11 @@ public class ReactomeBatchImporter {
         Long start = System.currentTimeMillis();
         prepareDatabase();
         try {
+            addDbInfo();
+
             List<GKInstance> tlps = getTopLevelPathways();
             importLogger.info("Started importing " + tlps.size() + " top level pathways");
             System.out.println("Started importing " + tlps.size() + " top level pathways...\n");
-
-            addDbInfo();
-
             for (GKInstance instance : tlps) {
                 long instanceStart = System.currentTimeMillis();
                 if (!dbIds.containsKey(instance.getDBID())) {
@@ -161,6 +163,7 @@ public class ReactomeBatchImporter {
         Map<String, Object> properties = new HashMap<>();
         properties.put("name", dba.getDBName());
         properties.put("version", dba.getReleaseNumber());
+        properties.put("checksum", getDatabaseChecksum());
         batchInserter.createNode(properties, Label.label("DBInfo"));
     }
 
@@ -579,7 +582,6 @@ public class ReactomeBatchImporter {
      * Cleaning the old database folder, instantiate BatchInserter, create Constraints for the new DB
      */
     private void prepareDatabase() throws IOException {
-
         File file = cleanDatabase();
         batchInserter = BatchInserters.inserter(file);
         createConstraints();
@@ -906,6 +908,40 @@ public class ReactomeBatchImporter {
             errorLogger.error(e.getMessage());
         }
         return false;
+    }
+
+    //############################## NEXT BIT IS USED TO CALCULATE THE DATABASE CHECKSUM ###############################
+
+    private Long getDatabaseChecksum() {
+        String prefix = "\rCalculating the database checksum: ";
+        System.out.print(prefix + "0%");
+        long checkSum = 0L;
+        String queries = "SELECT CONCAT('CHECKSUM TABLE ', table_name, ';') AS statement FROM information_schema.tables WHERE table_schema = ?";
+        try {
+            Connection dbaConn = dba.getConnection();
+            PreparedStatement ps = dbaConn.prepareStatement(queries);
+            ps.setString(1, dba.getDBName());
+
+            List<String> checkSumQueries = new ArrayList<>();
+            final ResultSet resultSet = ps.executeQuery();
+            while (resultSet.next()) checkSumQueries.add(resultSet.getString("statement"));
+            resultSet.close();
+
+            double total = checkSumQueries.size();
+            int i = 0;
+            for (String checkSumQuery : checkSumQueries) {
+                System.out.print(prefix + Math.round((++i/total) * 100) + "% (please wait...)");
+                PreparedStatement css = dbaConn.prepareStatement(checkSumQuery);
+                ResultSet cs = css.executeQuery();
+                if(cs.next()) checkSum += cs.getLong("Checksum");
+                cs.close();
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            errorLogger.error(ex.getMessage(), ex);
+        }
+        System.out.println(prefix + "DONE [" + checkSum + "]\n");
+        return checkSum;
     }
 
     //##################################### NEXT BIT IS USED FOR CONSISTENCY CHECK #####################################
