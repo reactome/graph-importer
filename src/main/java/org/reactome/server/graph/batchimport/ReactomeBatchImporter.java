@@ -151,11 +151,11 @@ public class ReactomeBatchImporter {
         printConsistencyCheckReport();
 
         importLogger.info("Storing the graph");
-        System.out.println("\nPlease wait while storing the graph...");
+        System.out.print("\n\nPlease wait while storing the graph...");
         batchInserter.shutdown();
-        importLogger.info("All top level pathways have been imported to Neo4j");
+        importLogger.info("The database '" + dba.getDBName() + "' has been imported to Neo4j");
         Long time = System.currentTimeMillis() - start;
-        System.out.println("\rAll top level pathways have been imported to Neo4j (" + getTimeFormatted(time) + ")");
+        System.out.println("\rThe database '" + dba.getDBName() + "' has been imported to Neo4j (" + getTimeFormatted(time) + ")");
 
     }
 
@@ -936,11 +936,11 @@ public class ReactomeBatchImporter {
                 if(cs.next()) checkSum += cs.getLong("Checksum");
                 cs.close();
             }
+            System.out.println("\rDatabase checksum successfully calculated: " + checkSum);
         } catch (SQLException ex) {
-            ex.printStackTrace();
             errorLogger.error(ex.getMessage(), ex);
+            System.err.println("\rThere was a problem calculating the database checksum (See error log)");
         }
-        System.out.println(prefix + "DONE [" + checkSum + "]\n");
         return checkSum;
     }
 
