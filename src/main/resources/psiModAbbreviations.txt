@@ -1,0 +1,127 @@
+1363612	MOD:00050	Ac	N-acetyl-L-alanine
+445689	MOD:00058	Ac	N-acetyl-L-methionine [MOD:00058]
+5690651	MOD:00737	AN	N-acetylneuraminylated
+445678	MOD:00064	Ac	N6-acetyl-L-lysine [MOD:00064]
+2314682	MOD:00369	Ac	O-acetyl-L-serine
+445680	MOD:00065	Ac	S-acetyl-L-cysteine [MOD:00065]
+2228688	MOD:00130	Al	L-allysine
+5334078	MOD:00049	Am	dipthamide
+8940826	MOD:00090	Am	L-alanine amide
+448178	MOD:00091	Am	L-arginine amide [MOD:00091]
+8940735	MOD:00092	Am	L-asparagine amide
+8940798	MOD:00093	Am	L-aspartic acid 1-amide
+8940726	MOD:00094	Am	L-cysteine amide
+8940819	MOD:00105	Am	L-serine amide
+8940772	MOD:00097	Am	glycine amide
+5334091	MOD:01145	Am	N-tau-(ADP-ribosyl)diphthamide
+2197648	MOD:00300	Ar	L-glutamyl-5-poly(ADP-ribose)
+1972394	MOD:00177	Rb	omega-N-(ADP-ribosyl)-L-arginine
+508310	MOD:00126	Bn	N6-biotinyl-L-lysine [MOD:00126]
+445688	MOD:00314	CE	glycine cholesterol ester [MOD:00314]
+5244798	MOD:00219	Ct	L-citrulline
+1237030	MOD:01152	Cx	carboxylated residue
+451578	MOD:00803	Cy	3-(S-L-cysteinyl)-L-tyrosine [MOD:00803]
+947527	MOD:00274	CS	L-cysteine persulfide
+2314515	MOD:00685	dA	deamidated L-glutamine
+448184	MOD:00390	Dc	O-decanoyl-L-serine [MOD:00390]
+3149582	MOD:01880	dO	L-deoxyhypusine
+1467184	MOD:00812	F	O-fucosyl-L-serine
+1467185	MOD:00813	F	O-fucosyl-L-threonine
+1467292	MOD:00804	F	O-glucosyl-L-serine
+2173690	MOD:00464	FK	N'-formyl-L-kynurenine
+448170	MOD:00111	Fn	S-farnesyl-L-cysteine [MOD:00111]
+6786355	MOD:00693	G	glycosylated residue
+445684	MOD:00506	G	N-linked glycan core [MOD:00506]
+2023629	MOD:00162	G	O5-glucosylgalactosyl-L-hydroxylysine
+2022987	MOD:00476	Ga	galactosylated residue
+913651	MOD:00163	Ga	O-(N-acetylamino)galactosyl-L-serine
+913631	MOD:00164	Ga	O-(N-acetylamino)galactosyl-L-threonine
+2243916	MOD:01914	Ga	O5-galactosyl-L-hydroxylysine
+448180	MOD:00113	GG	S-geranylgeranyl-L-cysteine [MOD:00113]
+2022865	MOD:00831	Gl	N4-(N-acetylamino)glucosyl-L-asparagine
+3238099	MOD:00160	G	N4-glycosyl-L-asparagine
+448181	MOD:00166	Gl	O4'-glucosyl-L-tyrosine [MOD:00166]
+2173688	MOD:00478	Gt	glutamyl semialdehyde (Pro)
+445681	MOD:00041	CA	L-gamma-carboxyglutamic acid [MOD:00041]
+8867377	MOD:00207	Gt	L-isoglutamyl-polyglutamic acid
+2314497	MOD:00117	Gt	S-(L-isoglutamyl)-L-cysteine
+8867409	MOD:00206	Gt	L-isoglutamyl-polyglycine
+5676242	MOD:00134	Gy	N6-glycyl-L-lysine
+3080559	MOD:00211	Gy	S-(glycyl)-L-cysteine (Cys-Gly)
+936753	MOD:01777	Gy	S-(glycyl)-L-cysteine (Gly)
+1237017	MOD:01699	H+	protonated residue
+448182	MOD:00798	hC	half cystine [MOD:00798]
+448172	MOD:00125	Hy	hypusine [MOD:00125]
+5362398	MOD:00818	PI	glycosylphosphatidylinositolated residue
+2534046	MOD:00503	Lp	N-(cis-delta 5)-tetradecaenoylglycine
+2534091	MOD:00504	Lp	N-(cis,cis-delta 5,delta 8)-tetradecadienoylglycine
+445683	MOD:00171	Lp	N-seryl-glycosylphosphatidylinositolethanolamine [MOD:00171]
+508264	MOD:00127	Lp	N6-lipoyl-L-lysine [MOD:00127]
+5229011	MOD:00077	Me	asymmetric dimethyl-L-arginine
+448174	MOD:00599	Me	monomethylated residue [MOD:00599]
+8857792	MOD:00342	Me	N-methyl-L-leucine
+6800135	MOD:00080	Me	N5-methyl-L-glutamine
+445693	MOD:00085	Me	N6-methyl-L-lysine [MOD:00085]
+448756	MOD:00084	Me	N6,N6-dimethyl-L-lysine [MOD:00084]
+448754	MOD:00083	Me	N6,N6,N6-trimethyl-L-lysine [MOD:00083]
+4754233	MOD:00078	Me	omega-N-methyl-L-arginine
+448169	MOD:00239	Me	S-methyl-L-cysteine [MOD:00239]
+4754236	MOD:00076	Me	symmetric dimethyl-L-arginine
+2534038	MOD:00908	mG	modified glycine residue
+5358463	MOD:00909	mH	modified L-histidine residue
+2173691	MOD:00912	mK	modified L-lysine residue
+5687366	MOD:00913	mM	modified L-methionine residue
+5615587	MOD:00810	Mn	O-mannosyl-L-serine
+448168	MOD:00438	My	myristoylated residue [MOD:00438]
+445679	MOD:00068	My	N-myristoylglycine [MOD:00068]
+448179	MOD:00087	My	N6-myristoyl-L-lysine [MOD:00087]
+4332225	MOD:01150	Nd	neddylated lysine
+6793589	MOD:01774	Oc	N6-octanoyl-L-lysine
+448176	MOD:00295	Oc	O-octanoyl-L-serine [MOD:00295]
+1234133	MOD:01024	OH	monohydroxylated proline
+448185	MOD:00036	OH	(2S,3R)-3-hydroxyaspartic acid [MOD:00036]
+1985668	MOD:00038	OH	(2S,3S)-3-hydroxyproline
+1985660	MOD:00039	OH	(2S,4R)-4-hydroxyproline
+1985667	MOD:00037	OH	(2S,5R)-5-hydroxylysine
+2173689	MOD:00465	OH	dihydroxyphenylalanine (Phe)
+1234150	MOD:01688	OH	monohydroxylated asparagine
+1606794	MOD:00835	Ox	L-3-oxoalanine (Ser)
+2173693	MOD:00971	Ox	Oxohistidine (from histidine)
+8852058	MOD:01614	P	glycyl phospho-5&apos;-adenosine
+445687	MOD:00046	P	O-phospho-L-serine [MOD:00046]
+445682	MOD:00047	P	O-phospho-L-threonine [MOD:00047]
+448187	MOD:00159	PN	O-phosphopantetheine-L-serine [MOD:00159]
+445676	MOD:00048	P	O4'-phospho-L-tyrosine [MOD:00048]
+445686	MOD:00696	P	phosphorylated residue [MOD:00696]
+448175	MOD:00069	Pa	N-palmitoyl-L-cysteine [MOD:00069]
+3238100	MOD:01381	Pa	O-palmitoleyl-L-serine
+448173	MOD:00115	Pa	S-palmitoyl-L-cysteine [MOD:00115]
+445675	MOD:00167	PI	N-asparaginyl-glycosylphosphatidylinositolethanolamine [MOD:00167]
+1226046	MOD:00168	PI	N-aspartyl-glycosylphosphatidylinositolethanolamine
+445677	MOD:00170	PI	N-glycyl-glycosylphosphatidylinositolethanolamine [MOD:00170]
+453351	MOD:00128	PP	N6-pyridoxal phosphate-L-lysine [MOD:00128]
+2197654	MOD:00752	Rb	adenosine diphosphoribosyl (ADP-ribosyl) modified residue
+5205902	MOD:01999	Rt	N6-(11-cis)-retinylidene-L-lysine
+5205906	MOD:00317	Rt	N6-3,4-didehydroretinylidene-L-lysine
+2465950	MOD:00129	Rt	N6-retinylidene-L-lysine
+8954256	MOD:00181	S	O4'-sulfo-L-tyrosine
+5631876	MOD:00267	Sf	L-cysteine sulfinic acid
+994091	MOD:01625	SH	1-thioglycine
+936579	MOD:01623	SH	1-thioglycine (C-terminal)
+2203515	MOD:00687	SH	thioether crosslinked residues
+2997631	MOD:01149	Sm	sumoylated lysine
+448177	MOD:00031	SS	L-selenocysteine residue [MOD:00031]
+450141	MOD:01148	U	ubiquitinylated lysine [MOD:01148]
+2063975	MOD:00814	Xy	O-xylosyl-L-serine
+611092	MOD:01638		glycine removal [MOD:01638]
+611084	MOD:01631		L-alanine removal [MOD:01631]
+611090	MOD:01632		L-arginine removal [MOD:01632]
+611077	MOD:01635		L-cysteine removal [MOD:01635]
+611100	MOD:01636		L-glutamic acid removal [MOD:01636]
+611074	MOD:01641		L-leucine removal [MOD:01641]
+611069	MOD:00024		L-proline residue [MOD:00024]
+611079	MOD:01646		L-serine removal [MOD:01646]
+611087	MOD:01647		L-threonine removal [MOD:01647]
+611091	MOD:01649		L-tyrosine removal [MOD:01649]
+611086	MOD:00028		L-tyrosine residue [MOD:00028]
+611063	MOD:00029		L-valine residue [MOD:00029]
