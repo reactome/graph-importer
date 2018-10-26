@@ -82,6 +82,7 @@ public class ReactomeBatchImporter {
     private static final DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private Set<String> trivialMolecules;
+    private Map<Long, String> psiModAbbreviation = new HashMap<>();
     private InteractionImporter interactionImporter;
     private GKInstanceHelper gkInstanceHelper;
 
@@ -115,6 +116,21 @@ public class ReactomeBatchImporter {
             System.out.println("\rTrivial molecules list successfully retrieved.");
         } catch (IOException e) {
             importLogger.error("An error occurred while retrieving the trivial molecules", e);
+        }
+
+        try {
+            System.out.print("Retrieving the PSI-MOD abbreviation list...");
+            importLogger.info("Retrieving the PSI-MOD abbreviation list");
+            psiModAbbreviation = new HashMap<>();
+            ClassLoader loader = Main.class.getClassLoader();
+            for (String line : IOUtils.toString(loader.getResourceAsStream("psiModAbbreviations.txt"), Charset.defaultCharset()).split("\n")) {
+                String[] cols = line.split("\t");
+                psiModAbbreviation.put(Long.valueOf(cols[0]), cols[2].trim());
+            }
+            importLogger.info("PSI-MOD abbreviation list successfully retrieved");
+            System.out.println("\rPSI-MOD abbreviation list successfully retrieved.");
+        } catch (IOException e) {
+            importLogger.error("An error occurred while retrieving the PSI-MOD abbreviations", e);
         }
 
         if(includeInteractors) interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile);
@@ -415,7 +431,15 @@ public class ReactomeBatchImporter {
                         String chebiId = (String) getObjectFromGkInstance(instance, "identifier");
                         properties.put(attribute, chebiId != null && trivialMolecules.contains(chebiId));
                         break;
-                    case "url":
+                    case "abbreviation": //Can be added or existing
+                        String str = psiModAbbreviation.get(instance.getDBID());
+                        if (str != null && !str.trim().isEmpty()) {
+                            properties.put(attribute, str);
+                        } else {
+                            defaultAction(instance, attribute, properties, type);
+                        }
+                        break;
+                    case "url": //Can be added or existing
                         if (!instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceDatabase) && !instance.getSchemClass().isa(ReactomeJavaConstants.Figure)) {
                             GKInstance referenceDatabase = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.referenceDatabase);
                             if (referenceDatabase == null) continue;
@@ -435,17 +459,12 @@ public class ReactomeBatchImporter {
 
                             properties.put("databaseName", databaseName);
                             properties.put(attribute, url.replace("###ID###", identifier));
-
-                            break;
-                        }
-                    default: //Here we are in a none graph-added field. The field content has to be treated based on the schema definition
-                        if (isValidGkInstanceAttribute(instance, attribute)) {
-                            Object value = getObjectFromGkInstance(instance, attribute);
-                            if (isConsistent(instance, value, attribute, type)) {
-                                properties.put(attribute, value);
-                            }
+                        } else {
+                            defaultAction(instance, attribute, properties, type);   //Can be added or existing
                         }
                         break;
+                    default: //Here we are in a none graph-added field. The field content has to be treated based on the schema definition
+                        defaultAction(instance, attribute, properties, type);
                 }
             }
         }
@@ -469,6 +488,16 @@ public class ReactomeBatchImporter {
             return batchInserter.createNode(properties, labels);
         } catch (IllegalArgumentException e) {
             throw new IllegalClassException("A problem occurred when trying to save entry to the Graph :" + instance.getDisplayName() + ":" + instance.getDBID());
+        }
+    }
+
+    //saveDatabaseObject default option
+    private void defaultAction(GKInstance instance, String attribute, Map<String, Object> properties, ReactomeAttribute.PropertyType type){
+        if (isValidGkInstanceAttribute(instance, attribute)) {
+            Object value = getObjectFromGkInstance(instance, attribute);
+            if (isConsistent(instance, value, attribute, type)) {
+                properties.put(attribute, value);
+            }
         }
     }
 
