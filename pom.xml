@@ -37,9 +37,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <reactome.graph.core>1.1.12</reactome.graph.core>
-        <reactome.base>1.2.15</reactome.base>
-        <neo4j.version>3.4.6</neo4j.version>
+        <reactome.graph.core>1.1.16-SNAPSHOT</reactome.graph.core>
+        <reactome.base>1.2.16</reactome.base>
+        <neo4j.version>3.4.9</neo4j.version>
         <interactor-core>1.0.14</interactor-core>
 
         <json.version>20090211</json.version>
