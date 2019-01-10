@@ -109,6 +109,7 @@ public class ReactomeBatchImporter {
             importLogger.info("Retrieving the trivial molecules list");
             trivialMolecules = new HashSet<>();
             ClassLoader loader = Main.class.getClassLoader();
+            //noinspection ConstantConditions
             for (String line : IOUtils.toString(loader.getResourceAsStream("trivialMolecules.txt"), Charset.defaultCharset()).split("\n")) {
                 trivialMolecules.add(line.split("\t")[0]);
             }
@@ -123,6 +124,7 @@ public class ReactomeBatchImporter {
             importLogger.info("Retrieving the PSI-MOD abbreviation list");
             psiModAbbreviation = new HashMap<>();
             ClassLoader loader = Main.class.getClassLoader();
+            //noinspection ConstantConditions,ConstantConditions
             for (String line : IOUtils.toString(loader.getResourceAsStream("psiModAbbreviations.txt"), Charset.defaultCharset()).split("\n")) {
                 String[] cols = line.split("\t");
                 psiModAbbreviation.put(Long.valueOf(cols[0]), cols[2].trim());
@@ -140,9 +142,16 @@ public class ReactomeBatchImporter {
     public void importAll(boolean barComplete) throws IOException {
         Long start = System.currentTimeMillis();
         prepareDatabase();
+
         try {
             addDbInfo();
+        } catch (Exception e) {
+            String msg = "Database Information node cannot be created. The expected information is not present in the relational database.";
+            System.out.println(msg);
+            importLogger.warn(msg);
+        }
 
+        try {
             List<GKInstance> tlps = getTopLevelPathways();
             importLogger.info("Started importing " + tlps.size() + " top level pathways");
             System.out.println("Started importing " + tlps.size() + " top level pathways...\n");
@@ -215,7 +224,7 @@ public class ReactomeBatchImporter {
     private Long importGkInstance(GKInstance instance) throws ClassNotFoundException {
         updateProgressBar(dbIds.size() + discarded.size());
 
-        String clazzName = DatabaseObject.class.getPackage().getName() + "." + instance.getSchemClass().getName();
+        String clazzName = getClassName(instance);
         Class clazz = Class.forName(clazzName);
         setUpFields(clazz); //Sets up the attribute map per class populating relationAttributesMap and primitiveListAttributesMap
         Long id = saveDatabaseObject(instance, clazz);
@@ -477,6 +486,7 @@ public class ReactomeBatchImporter {
                 if (isValidGkInstanceAttribute(instance, attribute)) {
                     Collection values = getCollectionFromGkInstance(instance, attribute);
                     if (isConsistent(instance, values, attribute, type)) {
+                        //noinspection SuspiciousToArrayCall,ToArrayCallWithZeroLengthArrayArgument
                         properties.put(attribute, values.toArray(new String[values.size()]));
                     }
                 }
@@ -527,7 +537,7 @@ public class ReactomeBatchImporter {
                 for (Object object : objects) {
                     GKInstance gkInstance = (GKInstance) object;
                     //All go to discarded and the chosen one will be removed
-                    if(!dbIds.containsKey(gkInstance.getDBID())) discarded.add(gkInstance.getDBID());
+                    if (!dbIds.containsKey(gkInstance.getDBID())) discarded.add(gkInstance.getDBID());
                     Date date = formatter.parse((String) getObjectFromGkInstance(gkInstance, ReactomeJavaConstants.dateTime));
                     if (latestDate.before(date)) {
                         latestDate = date;
@@ -539,7 +549,7 @@ public class ReactomeBatchImporter {
                 objects.add(latestModified);
                 discarded.remove(latestModified.getDBID());
             } catch (Exception e) {
-                e.printStackTrace();
+                importLogger.error("Problem while filtering tbe 'modified' relationship for " + oldId, e);
             }
         }
 
@@ -572,6 +582,7 @@ public class ReactomeBatchImporter {
         }
     }
 
+    @SuppressWarnings("Duplicates")
     public static void saveRelationship(Long toId, Long fromId, RelationshipType relationshipType, Map<String, Object> properties) {
         String relationName = relationshipType.name();
         switch (relationName) {
@@ -740,6 +751,26 @@ public class ReactomeBatchImporter {
     }
 
     /**
+     * For cases like the "Drug" instances, the graph database will keep different subclasses (e.g. ChemicalDrug or
+     * ProteinDrug) instead of using the drugType as it is annotated in GK_Central
+     *
+     * @param instance the instance for which the class name is required
+     * @return a String with the className to be assigned to the instance conversion
+     */
+    private static String getClassName(GKInstance instance){
+        if(instance.getSchemClass().isa("Drug") && instance.getSchemClass().isValidAttribute(ReactomeJavaConstants.drugType)) {
+            try {
+                GKInstance drugType = (GKInstance) instance.getAttributeValue(ReactomeJavaConstants.drugType);
+                return DatabaseObject.class.getPackage().getName() + "." + drugType.getDisplayName();
+            } catch (Exception e) {
+                return DatabaseObject.class.getPackage().getName() + "." + instance.getSchemClass().getName();
+            }
+        } else {
+            return DatabaseObject.class.getPackage().getName() + "." + instance.getSchemClass().getName();
+        }
+    }
+
+    /**
      * Getting all SimpleNames as neo4j labels, for given class.
      *
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
@@ -772,6 +803,7 @@ public class ReactomeBatchImporter {
                 labels.add(Label.label(superClass.getSimpleName()));
             }
         }
+        //noinspection ToArrayCallWithZeroLengthArrayArgument
         return labels.toArray(new Label[labels.size()]);
     }
 
@@ -906,6 +938,7 @@ public class ReactomeBatchImporter {
      * @param attribute FieldName
      * @return Object
      */
+    @SuppressWarnings("SameParameterValue")
     private Collection getCollectionFromGkInstanceReferrals(GKInstance instance, String attribute) {
         Collection rtn = null;
         try {
@@ -945,6 +978,7 @@ public class ReactomeBatchImporter {
         String prefix = "\rCalculating the database checksum: ";
         System.out.print(prefix + "0%");
         long checkSum = 0L;
+        @SuppressWarnings({"SqlDialectInspection", "SqlNoDataSourceInspection"})
         String queries = "SELECT CONCAT('CHECKSUM TABLE ', table_name, ';') AS statement FROM information_schema.tables WHERE table_schema = ?";
         try {
             Connection dbaConn = dba.getConnection();
