@@ -368,6 +368,7 @@ public class InteractionImporter {
             rtn = pe.getReferers(ReactomeJavaConstants.input) != null ||
                   pe.getReferers(ReactomeJavaConstants.output) != null ||
                   pe.getReferers(ReactomeJavaConstants.physicalEntity) != null ||
+                  pe.getReferers(ReactomeJavaConstants.diseaseEntity) != null ||
                   pe.getReferers(ReactomeJavaConstants.regulator) != null;
         } catch (Exception e) {
             /*nothing here*/
