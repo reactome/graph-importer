@@ -4,72 +4,16 @@
 
 ## What is the Reactome Graph Batch Importer project
 
-The Batch Importer is a tool used for initial data conversion from the Reactome relational database to a graph database. To maximise import performance the Neo4j Batch Importer is utilised to directly create the Neo4j database file structure. This process is unsafe ignoring transactions, constraints or other safety features. Constraints will be checked once the import process has finished. 
+The Graph Importer is a tool used for initial data conversion from the Reactome relational database to a graph database. To maximise import performance the Neo4j Graph Importer is utilised to directly create the Neo4j database file structure. This process is unsafe ignoring transactions, constraints or other safety features. Constraints will be checked once the import process has finished. 
 
-The Batch Importer generates the graph database dynamically depending on the Model specified in the Reactome graph library. Depending on the POJOs specified in Domain model, data will be automatically fetched from corresponding Instances of the relational database. Annotations used in the model help to indicate properties and relationships that should be taken into account in the import process.  
+The Gatch Importer generates the graph database dynamically depending on the Model specified in the Reactome graph library. Depending on the POJOs specified in Domain model, data will be automatically fetched from corresponding Instances of the relational database. Annotations used in the model help to indicate properties and relationships that should be taken into account in the import process.  
 
 #### Project components used:
 
 * [Neo4j](https://neo4j.com/download/) Community Edition - version: 3.2.2 or latest
 * Reactome [Graph](https://github.com/reactome/graph-core) Core 
 
-#### Reactome data import
-
-Reactome data will be automatically be imported when running the [script](https://raw.githubusercontent.com/reactome/graph-importer/master/setup-graph.sh) ```setup-graph.sh```. User executing this script will be asked for password if permissions require it.
-
-Another option could be cloning the git repository ```git clone https://github.com/reactome/graph-importer.git``` 
- 
-* Script Usage
-```console
-./setup-graph 
-    -h  Print usage.
-    -i  Add -i to Install Neo4j
-    -j  Add -j to Importa Data into Neo4j
-    -h  Reactome MySQL database host. DEFAULT: localhost
-    -s  Reactome MySQL database port. DEFAULT: 3306
-    -t  Reactome MySQL database name. DEFAULT: reactome
-    -u  Reactome MySQL database user. DEFAULT: reactome
-    -v  Reactome MySQL database password. DEFAULT: reactome
-    -d  Target directory where graph will be created DEFAULT: ./target/graph.db
-    -n  Neo4j password (only set when neo4j is installed)
-```
-
-:warning: Do not execute as sudo, permission will be asked when required
-
-* Installing Neo4j (Linux only)
-```console
-./setup-graph -i
-```
-
-* Installing Neo4j in other platforms
-    * [MAC OS X](http://neo4j.com/docs/operations-manual/current/installation/osx/)
-    * [Windows](http://neo4j.com/docs/operations-manual/current/installation/windows/)
-    
-```console
-By opening http://localhost:7474 and reaching Neo4j browser you're ready to import data.
-```
-
-* Importing Data
-
-> :memo: Refer to [Extras](https://github.com/gsviteri/DemoLayout/new/master?readme=1#extras) in order to download the MySql database before starting.
-
-```console
-./setup-graph -j 
-    -h  Reactome MySQL database host. DEFAULT: localhost
-    -s  Reactome MySQL database port. DEFAULT: 3306
-    -t  Reactome MySQL database name. DEFAULT: reactome
-    -u  Reactome MySQL database user. DEFAULT: reactome
-    -v  Reactome MySQL database password. DEFAULT: reactome
-    -d  Target directory where graph will be created DEFAULT: ./target/graph.db
-    -n  Neo4j password (only set when neo4j is installed)
-```
-
-Example:
-```
-./setup-graph -j -h localhost -s 3306 -t reactome -u reactome_user -p not2share -d ./target/graph.db
-```
-
-#### Data Import without the script
+#### Data Import
 
 Reactome data can be imported without the script using the Main.java entry point. Use: ```java -jar BatchImporter-jar-with-dependencies.jar```
 
@@ -82,24 +26,53 @@ Reactome data can be imported without the script using the Main.java entry point
 
 When executing the jar file following properties have to be set.
 ```java
-    -h  Reactome MySQL database host. DEFAULT: localhost
-    -s  Reactome MySQL database port. DEFAULT: 3306
-    -t  Reactome MySQL database name. DEFAULT: reactome
-    -u  Reactome MySQL database user. DEFAULT: reactome
-    -v  Reactome MySQL database password. DEFAULT: reactome
-    -d  Target directory where graph will be created DEFAULT: ./target/graph.db
-    -n  Neo4j password (only set when neo4j is installed)
+Usage:
+  org.reactome.server.graph.Main [--help] [(-h|--host) <host>] [(-s|--port)
+  <port>] [(-d|--name) <name>] [(-u|--user) <user>] [(-p|--password) <password>]
+  [(-n|--neo4j) <neo4j>] [(-f|--intactFile) <intactFile>]
+  [(-i|--interactions)[:<interactions>]] [(-b|--bar)[:<bar>]]
+
+A tool for importing reactome data import to the neo4j graphDb
+
+
+  [--help]
+        Prints this help message.
+
+  [(-h|--host) <host>]
+        The database host (default: localhost)
+
+  [(-s|--port) <port>]
+        The reactome port (default: 3306)
+
+  [(-d|--name) <name>]
+        The reactome database name to connect to (default: reactome)
+
+  [(-u|--user) <user>]
+        The database user (default: reactome)
+
+  [(-p|--password) <password>]
+        The password to connect to the database (default: reactome)
+
+  [(-n|--neo4j) <neo4j>]
+        Path to the neo4j database (default: ./target/graph.db)
+
+  [(-f|--intactFile) <intactFile>]
+        Path to the interaction data file
+
+  [(-i|--interactions)[:<interactions>]]
+        Include interaction data. If the intactFile is not provided, the
+        interaction data will be downloaded
 ```
 
 Example:
 ```java
-java -jar BatchImporter-jar-with-dependencies.jar \ 
+java -jar GraphImporter-jar-with-dependencies \ 
      -h localhost \ 
      -s 3306 \
-     -t reactome \ 
+     -d reactome \ 
      -u reactome_user \
      -p not2share \ 
-     -d ./target/graph.db
+     -n ./target/graph.db
 ```
 
 #### Extras
