@@ -69,10 +69,10 @@ Example:
 java -jar GraphImporter-jar-with-dependencies \ 
      -h localhost \ 
      -s 3306 \
-     -t reactome \ 
+     -d reactome \ 
      -u reactome_user \
      -p not2share \ 
-     -d ./target/graph.db
+     -n ./target/graph.db
 ```
 
 #### Extras
