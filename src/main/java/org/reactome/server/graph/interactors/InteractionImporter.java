@@ -179,6 +179,7 @@ public class InteractionImporter {
         String interactionURL = "https://www.ebi.ac.uk/intact/pages/interactions/interactions.xhtml?query=";
         List<String> accession = new ArrayList<>();
         interaction.getInteractionDetailsList().forEach(details -> accession.add(details.getInteractionAc()));
+        List<String> pubmeds = interaction.getPubmedIdentifiers();
 
         Map<String, Object> rtn = new HashMap<>();
         rtn.put("dbId", dbId);
@@ -186,6 +187,7 @@ public class InteractionImporter {
         rtn.put("databaseName", "IntAct");
         rtn.put("score", interaction.getIntactScore());
         rtn.put("accession", accession.toArray(new String[accession.size()]));
+        if (pubmeds != null) rtn.put("pubmed", pubmeds.toArray(new String[pubmeds.size()]));
         rtn.put("url", interactionURL + String.join("%20OR%20", accession));
         rtn.put("schemaClass", UndirectedInteraction.class.getSimpleName());
         return rtn;
