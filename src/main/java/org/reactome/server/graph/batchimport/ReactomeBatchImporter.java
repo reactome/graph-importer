@@ -82,7 +82,6 @@ public class ReactomeBatchImporter {
     private static final DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private Set<String> trivialMolecules;
-    private Map<Long, String> psiModAbbreviation = new HashMap<>();
     private InteractionImporter interactionImporter;
     private GKInstanceHelper gkInstanceHelper;
 
@@ -119,28 +118,12 @@ public class ReactomeBatchImporter {
             importLogger.error("An error occurred while retrieving the trivial molecules", e);
         }
 
-        try {
-            System.out.print("Retrieving the PSI-MOD abbreviation list...");
-            importLogger.info("Retrieving the PSI-MOD abbreviation list");
-            psiModAbbreviation = new HashMap<>();
-            ClassLoader loader = Main.class.getClassLoader();
-            //noinspection ConstantConditions,ConstantConditions
-            for (String line : IOUtils.toString(loader.getResourceAsStream("psiModAbbreviations.txt"), Charset.defaultCharset()).split("\n")) {
-                String[] cols = line.split("\t");
-                psiModAbbreviation.put(Long.valueOf(cols[0]), cols[2].trim());
-            }
-            importLogger.info("PSI-MOD abbreviation list successfully retrieved");
-            System.out.println("\rPSI-MOD abbreviation list successfully retrieved.");
-        } catch (IOException e) {
-            importLogger.error("An error occurred while retrieving the PSI-MOD abbreviations", e);
-        }
-
         if(includeInteractors) interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile);
         gkInstanceHelper = new GKInstanceHelper(dba);
     }
 
     public void importAll(boolean barComplete) throws IOException {
-        Long start = System.currentTimeMillis();
+        final long start = System.currentTimeMillis();
         prepareDatabase();
 
         try {
@@ -439,14 +422,6 @@ public class ReactomeBatchImporter {
                     case "trivial":
                         String chebiId = (String) getObjectFromGkInstance(instance, "identifier");
                         properties.put(attribute, chebiId != null && trivialMolecules.contains(chebiId));
-                        break;
-                    case "abbreviation": //Can be added or existing
-                        String str = psiModAbbreviation.get(instance.getDBID());
-                        if (str != null && !str.trim().isEmpty()) {
-                            properties.put(attribute, str);
-                        } else {
-                            defaultAction(instance, attribute, properties, type);
-                        }
                         break;
                     case "url": //Can be added or existing
                         if (!instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceDatabase) && !instance.getSchemClass().isa(ReactomeJavaConstants.Figure)) {
