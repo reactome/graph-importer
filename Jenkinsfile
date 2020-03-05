@@ -6,7 +6,6 @@ def previousRelease
 pipeline
 {
 	agent any
-
 	stages
 	{
 		// This stage checks that upstream projects OrthoinferenceStableIdentifierHistory were run successfully for their last build.
@@ -20,7 +19,7 @@ pipeline
 					previousRelease = (pwd() =~ /Releases\/(\d+)\//)[0][1].toInteger() - 1;
 					// This queries the Jenkins API to confirm that the most recent builds of AddLinks-Download and Orthoinference were successful.
 					checkUpstreamBuildsSucceeded("OrthoinferenceStableIdentifierHistory", "$currentRelease")
-    			}
+				}
 			}
 		}
 
@@ -33,13 +32,13 @@ pipeline
 				{
 					sh "mvn clean package -DskipTests"
 				}
-			 }
-   		}
-   		stage('Rename database')
-   		{
-    		// Normally, the relational database is named "release_current" but it need to be renamed to "reactome" because that's the name
-    		// that needs to be in the graph database, otherwise the AnalysisService will report an error.
-    		// "Renaming" the database really involves dumping to a temp file and then restoring it with a different name.
+			}
+		}
+		stage('Setup: Rename database')
+		{
+			// Normally, the relational database is named "release_current" but it need to be renamed to "reactome" because that's the name
+			// that needs to be in the graph database, otherwise the AnalysisService will report an error.
+			// "Renaming" the database really involves dumping to a temp file and then restoring it with a different name.
 			// TODO: Finish this stage.
 			steps
 			{
@@ -47,7 +46,7 @@ pipeline
 				{
 					withCredentials([usernamePassword(credentialsId: 'mySQLUsernamePassword', passwordVariable: 'pass', usernameVariable: 'user')])
 					{
-            			def dumpfile = "${env.RELEASE_CURRENT}_${currentRelease}_before_graph_import.dump"
+						def dumpfile = "${env.RELEASE_CURRENT}_${currentRelease}_before_graph_import.dump"
 						sh "mysqldump -u$user -p$pass ${env.RELEASE_CURRENT} > $dumpfile"
 						sh "mysql -h localhost -u$user -p$pass reactome < $dumpfile "
 					}
@@ -67,7 +66,7 @@ pipeline
 				}
 			}
 		}
-		stage('Install graph database')
+		stage('Post: Install graph database')
 		{
 			steps
 			{
@@ -81,12 +80,12 @@ pipeline
 				{
 					// Remove old graphdb
 					sh "rm -rf /var/lib/neo4j/data/databases/graph.db"
-    				// Move the graph database into position.
-    				sh "mv -a ./graphdb /var/lib/neo4j/data/databases/graph.db"
-    				// Set permissions
-    				sh "chmod 644 /var/lib/neo4j/data/databases/graph.db/*"
-    				sh "chmod a+x /var/lib/neo4j/data/databases/graph.db/schema/"
-    				sh "sudo chown -R neo4j:adm /var/lib/neo4j/data/databases/graph.db/"
+						// Move the graph database into position.
+						sh "mv -a ./graphdb /var/lib/neo4j/data/databases/graph.db"
+						// Set permissions
+						sh "chmod 644 /var/lib/neo4j/data/databases/graph.db/*"
+						sh "chmod a+x /var/lib/neo4j/data/databases/graph.db/schema/"
+						sh "sudo chown -R neo4j:adm /var/lib/neo4j/data/databases/graph.db/"
 				}
 				script
 				{
@@ -98,7 +97,7 @@ pipeline
 		}
 
 		// This stage archives all logs and database backups produced by AddLink-Insertion.
-		stage('Post:Archive logs and backups')
+		stage('Post: Archive logs and backups')
 		{
 			steps
 			{
@@ -111,17 +110,22 @@ pipeline
 				}
 			}
 		}
-  	}
+	}
 }
 
 // Utility function that checks upstream builds of this project were successfully built.
-def checkUpstreamBuildsSucceeded(String stepName, String currentRelease) {
+def checkUpstreamBuildsSucceeded(String stepName, String currentRelease)
+{
 	def statusUrl = httpRequest authentication: 'jenkinsKey', validResponseCodes: "${env.VALID_RESPONSE_CODES}", url: "${env.JENKINS_JOB_URL}/job/$currentRelease/job/$stepName/lastBuild/api/json"
-	if (statusUrl.getStatus() == 404) {
+	if (statusUrl.getStatus() == 404)
+	{
 		error("$stepName has not yet been run. Please complete a successful build.")
-	} else {
+	}
+	else
+	{
 		def statusJson = new JsonSlurper().parseText(statusUrl.getContent())
-		if(statusJson['result'] != "SUCCESS"){
+		if(statusJson['result'] != "SUCCESS")
+		{
 			error("Most recent $stepName build status: " + statusJson['result'] + ". Please complete a successful build.")
 		}
 	}
