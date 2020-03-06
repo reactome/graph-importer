@@ -80,12 +80,12 @@ pipeline
 				{
 					// Remove old graphdb
 					sh "rm -rf /var/lib/neo4j/data/databases/graph.db"
-						// Move the graph database into position.
-						sh "mv -a ./graphdb /var/lib/neo4j/data/databases/graph.db"
-						// Set permissions
-						sh "chmod 644 /var/lib/neo4j/data/databases/graph.db/*"
-						sh "chmod a+x /var/lib/neo4j/data/databases/graph.db/schema/"
-						sh "sudo chown -R neo4j:adm /var/lib/neo4j/data/databases/graph.db/"
+					// Move the graph database into position.
+					sh "mv -a ./graphdb /var/lib/neo4j/data/databases/graph.db"
+					// Set permissions
+					sh "chmod 644 /var/lib/neo4j/data/databases/graph.db/*"
+					sh "chmod a+x /var/lib/neo4j/data/databases/graph.db/schema/"
+					sh "sudo chown -R neo4j:adm /var/lib/neo4j/data/databases/graph.db/"
 				}
 				script
 				{
@@ -95,18 +95,45 @@ pipeline
 				}
 			}
 		}
-
-		// This stage archives all logs and database backups produced by AddLink-Insertion.
-		stage('Post: Archive logs and backups')
+		// TODO: Maybe use the actual "post" directive?
+		stage('Post: Archive logs, run qa')
 		{
 			steps
 			{
 				script
 				{
 					sh "mkdir -p archive/${currentRelease}/logs"
-					sh "mv --backup=numbered *_${currentRelease}_*.dump.gz archive/${currentRelease}/"
-					sh "gzip logs/*.log logs/retrievers/* logs/file-processors/* logs/refCreators/*"
 					sh "mv logs/* archive/${currentRelease}/logs"
+				}
+			}
+			stages
+			{
+				stage('graph-qa')
+				{
+					steps
+					{
+						checkout changelog: false, poll: false, scm: [$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github credentials', url: 'https://github.com/reactome/graph-qa.git']]]
+						dir('./graph-importer')
+						{
+							script
+							{
+								sh "mvn clean package -DskipTests"
+							}
+							withCredentials([usernamePassword(credentialsId: 'graphdbCredentials', passwordVariable: 'graphdbPassword', usernameVariable: 'graphdbUser')])
+							{
+								script
+								{
+									def qaSummary = sh(returnStdout: true, script: "java -jar target/graph-qa-jar-with-dependencies.jar -h localhost -u $graphdbUser -p $graphdbPassword -o ./$currentRelease -v").trim()
+									sh "tar -czf ./$currentRelease.tgz ./$currentRelease"
+									emailext attachmentsPattern: "$currentRelease.tgz", body: '''Graph-qa has finished. Summary is:
+
+$qaSummary
+
+Detailed reports are attached.''', subject: "graph-qa results", to: "reactome-developer@reactome.org"
+								}
+							}
+						}
+					}
 				}
 			}
 		}
