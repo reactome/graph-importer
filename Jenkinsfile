@@ -80,12 +80,12 @@ pipeline
 				{
 					// Remove old graphdb
 					sh "rm -rf /var/lib/neo4j/data/databases/graph.db"
+					// Set permissions
+					sh "chmod 644 ./graph.db/*"
+					sh "chmod a+x ./graph.db/schema/"
+					sh "chown -R neo4j:adm ./graph.db/"
 					// Move the graph database into position.
 					sh "mv -a ./graphdb /var/lib/neo4j/data/databases/graph.db"
-					// Set permissions
-					sh "chmod 644 /var/lib/neo4j/data/databases/graph.db/*"
-					sh "chmod a+x /var/lib/neo4j/data/databases/graph.db/schema/"
-					sh "sudo chown -R neo4j:adm /var/lib/neo4j/data/databases/graph.db/"
 				}
 				script
 				{
