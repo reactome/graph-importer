@@ -37,9 +37,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <reactome.graph.core>1.1.20-SNAPSHOT</reactome.graph.core>
-        <reactome.base>1.2.20</reactome.base>
-        <neo4j.version>3.4.12</neo4j.version>
+        <reactome.graph.core>1.1.21-SNAPSHOT</reactome.graph.core>
+        <reactome.base>2.0.0-SNAPSHOT</reactome.base>
+        <neo4j.version>3.5.18</neo4j.version>
         <interactor-core>1.0.15-SNAPSHOT</interactor-core>
 
         <json.version>20090211</json.version>
@@ -102,11 +102,23 @@
     </dependencies>
 
     <repositories>
+        <!--Maven Central repository-->
+        <repository>
+            <id>mvn-central</id>
+            <name>The Maven Central repository</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
         <!--EBI repository-->
         <repository>
             <id>nexus-ebi-repo</id>
             <name>The EBI internal repository</name>
-            <url>http://www.ebi.ac.uk/Tools/maven/repos/content/groups/ebi-repo/</url>
+            <url>https://www.ebi.ac.uk/Tools/maven/repos/content/groups/ebi-repo/</url>
             <releases>
                 <enabled>true</enabled>
             </releases>
@@ -118,7 +130,7 @@
         <repository>
             <id>nexus-ebi-snapshot-repo</id>
             <name>The EBI internal snapshot repository</name>
-            <url>http://www.ebi.ac.uk/Tools/maven/repos/content/groups/ebi-snapshots/</url>
+            <url>https://www.ebi.ac.uk/Tools/maven/repos/content/groups/ebi-snapshots/</url>
             <releases>
                 <enabled>false</enabled>
             </releases>
