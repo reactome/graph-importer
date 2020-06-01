@@ -22,6 +22,7 @@ public class Main {
                         new FlaggedOption(  "user",         JSAP.STRING_PARSER,   "reactome",           JSAP.NOT_REQUIRED, 'u', "user",         "The database user"),
                         new FlaggedOption(  "password",     JSAP.STRING_PARSER,   "reactome",           JSAP.NOT_REQUIRED, 'p', "password",     "The password to connect to the database"),
                         new FlaggedOption(  "neo4j",        JSAP.STRING_PARSER,   "./target/graph.db",  JSAP.NOT_REQUIRED, 'n', "neo4j",        "Path to the neo4j database"),
+                        new FlaggedOption(  "neo4jVersion", JSAP.STRING_PARSER,   "3.5.x",              JSAP.NOT_REQUIRED, 'r', "neo4jversion", "Neo4j version"),
                         new FlaggedOption(  "intactFile",   JSAP.STRING_PARSER,   JSAP.NO_DEFAULT,          JSAP.NOT_REQUIRED, 'f', "intactFile",   "Path to the interaction data file"),
                         new QualifiedSwitch("interactions", JSAP.BOOLEAN_PARSER,  JSAP.NO_DEFAULT,          JSAP.NOT_REQUIRED, 'i', "interactions", "Include interaction data. If the intactFile is not provided, the interaction data will be downloaded"),
                         new QualifiedSwitch("bar",          JSAP.BOOLEAN_PARSER,  JSAP.NO_DEFAULT,          JSAP.NOT_REQUIRED, 'b', "bar",          "Forces final status")
@@ -56,7 +57,8 @@ public class Main {
                 config.getString("user"),
                 config.getString("password"),
                 config.getString("neo4j"),
-                includeInteractions, intactFile
+                includeInteractions, intactFile,
+                config.getString("n4jversion")
         );
         batchImporter.importAll(!config.getBoolean("bar"));
     }

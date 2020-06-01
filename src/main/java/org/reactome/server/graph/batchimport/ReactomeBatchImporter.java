@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -49,6 +50,7 @@ public class ReactomeBatchImporter {
     private static MySQLAdaptor dba;
     private static BatchInserter batchInserter;
     private static String DATA_DIR;
+    private String neo4jVersion;
 
     private static final String DBID = "dbId";
     private static final String STID = "stId";
@@ -86,9 +88,10 @@ public class ReactomeBatchImporter {
     private GKInstanceHelper gkInstanceHelper;
 
     public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j,
-                                 boolean includeInteractors, String interactorsFile) {
+                                 boolean includeInteractors, String interactorsFile, String neo4jVersion) {
         try {
             DATA_DIR = neo4j;
+            this.neo4jVersion = neo4jVersion;
             dba = new MySQLAdaptor(host, name, user, password, port);
             maxDbId = dba.fetchMaxDbId();
 
@@ -172,7 +175,22 @@ public class ReactomeBatchImporter {
         properties.put("name", dba.getDBName());
         properties.put("version", dba.getReleaseNumber());
         properties.put("checksum", getDatabaseChecksum());
+        properties.put("neo4j", getNeo4jVersion());
         batchInserter.createNode(properties, Label.label("DBInfo"));
+    }
+
+    /**
+     * Default 3.5.x
+     * @return neo4j installed in the system that is running on the system.
+     */
+    private String getNeo4jVersion() {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("/usr/bin/neo4j", "version");
+            neo4jVersion = IOUtils.toString(pb.start().getInputStream(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            importLogger.error("[NEO4J VERSION] Couldn't determine neo4j version. Default one will be used [" + neo4jVersion + "]");
+        }
+        return neo4jVersion;
     }
 
     private List<GKInstance> getTopLevelPathways() throws Exception {
