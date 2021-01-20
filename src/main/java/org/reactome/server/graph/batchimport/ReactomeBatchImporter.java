@@ -188,7 +188,8 @@ public class ReactomeBatchImporter {
             ProcessBuilder pb = new ProcessBuilder("/usr/bin/neo4j", "version");
             neo4jVersion = IOUtils.toString(pb.start().getInputStream(), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            importLogger.error("[NEO4J VERSION] Couldn't determine neo4j version. Default one will be used [" + neo4jVersion + "]");
+            System.err.println("[NEO4J VERSION] Failed to determine OS neo4j version. Default value from PROGRAM ARGUMENTS will be used [" + neo4jVersion + "]. Make sure you are setting --neo4jVersion appropriately");
+            importLogger.error("[NEO4J VERSION] Failed to determine OS neo4j version. Default value from PROGRAM ARGUMENTS will be used [" + neo4jVersion + "]. Make sure you are setting --neo4jVersion appropriately");
         }
         return neo4jVersion;
     }
