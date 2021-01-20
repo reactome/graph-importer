@@ -23,21 +23,16 @@
         <developer>
             <id>fkorn</id>
             <name>Florian Korninger</name>
-            <email>fkorn@ebi.ac.uk</email>
-            <organization>http://www.ebi.ac.uk/</organization>
         </developer>
         <developer>
             <id>fabregat</id>
-            <name>Antonio Fabregat</name>
-            <email>fabregat@ebi.ac.uk</email>
-            <organization>http://www.ebi.ac.uk/</organization>
         </developer>
     </developers>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <reactome.graph.core>1.1.21-SNAPSHOT</reactome.graph.core>
+        <reactome.graph.core>1.1.22</reactome.graph.core>
         <reactome.base>2.0.0-SNAPSHOT</reactome.base>
         <neo4j.version>3.5.18</neo4j.version>
         <interactor-core>1.0.15-SNAPSHOT</interactor-core>
