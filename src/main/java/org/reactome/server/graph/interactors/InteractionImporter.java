@@ -4,14 +4,15 @@ import org.apache.commons.io.FileUtils;
 import org.gk.model.GKInstance;
 import org.gk.model.ReactomeJavaConstants;
 import org.gk.persistence.MySQLAdaptor;
+import org.neo4j.batchinsert.BatchInserter;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.reactome.server.graph.batchimport.ReactomeBatchImporter;
 import org.reactome.server.graph.domain.model.ReferenceGeneProduct;
 import org.reactome.server.graph.domain.model.ReferenceIsoform;
 import org.reactome.server.graph.domain.model.ReferenceMolecule;
 import org.reactome.server.graph.domain.model.UndirectedInteraction;
+import org.reactome.server.graph.utils.ProgressBarUtils;
 import org.reactome.server.graph.utils.TaxonomyHelper;
 import org.reactome.server.interactors.IntactParser;
 import org.reactome.server.interactors.database.InteractorsDatabase;
@@ -34,20 +35,16 @@ import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
 
 /**
  * Imports interaction data from the IntAct database.
- *
  * Uses the interactors-core project (https://github.com/reactome-pwp/interactors-core)
- *
- * @author Antonio Fabregat (fabregat@ebi.ac.uk)
  */
 public class InteractionImporter {
 
     private static final Logger importLogger = LoggerFactory.getLogger("import");
-    private static final int PROGRESS_BAR_WITH = 70;
 
-    private MySQLAdaptor dba;
-    private Map<Long, Long> dbIds;
+    private final MySQLAdaptor dba;
+    private final Map<Long, Long> dbIds;
 
-    private TaxonomyHelper taxonomyHelper;
+    private final TaxonomyHelper taxonomyHelper;
 
     private static final Long REACTOME_UNIPROT_REFERENCE_DATABASE = 2L;
     private static final Long REACTOME_CHEBI_REFERENCE_DATABASE = 114984L;
@@ -62,6 +59,7 @@ public class InteractionImporter {
 
     private Long intActReferenceDatabaseDbId;
     private static final Map<String, Set<Long>> referenceEntityMap = new HashMap<>(); // (UniProt:12345) -> [dbId]
+    private static final Map<Long, InteractorResource> interactorResourceMap = new HashMap<>();
 
     public InteractionImporter(MySQLAdaptor dba, Map<Long, Long> dbIds, Map<Integer, Long> taxIdDbId, String fileName) {
         this.dba = dba;
@@ -72,7 +70,7 @@ public class InteractionImporter {
     }
 
     public void addInteractionData(BatchInserter batchInserter) {
-        Long start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
         initialise();
 
         RelationshipType interactor = RelationshipType.withName("interactor");
@@ -90,9 +88,9 @@ public class InteractionImporter {
         Set<Long> addedInteractions = new HashSet<>();
         int addedReferenceEntities = 0;
         Collection<GKInstance> referenceEntities = getTargetReferenceEntities();
-        long i = 0; int total = referenceEntities.size();
+        int i = 0; int total = referenceEntities.size();
         for (GKInstance referenceEntity : referenceEntities) {
-            updateProgressBar(++i, total);
+            ProgressBarUtils.updateProgressBar(++i, total);
             if(i % QUERIES_OFFSET == 0) cleanInteractorsCache();
             final Long a = dbIds.get(referenceEntity.getDBID());
             if (a == null) continue;
@@ -167,12 +165,12 @@ public class InteractionImporter {
 
         finalise();
         Long time = System.currentTimeMillis() - start;
-        System.out.println(String.format(
-                "\n\t%,d interactions and %,d ReferenceEntity objects have been added to the graph (%s). ",
+        System.out.printf(
+                "\n\t%,d interactions and %,d ReferenceEntity objects have been added to the graph (%s). %n",
                 addedInteractions.size(),
                 addedReferenceEntities,
                 getTimeFormatted(time)
-        ));
+        );
     }
 
     private Map<String, Object> createInteractionMap(Long dbId, String name, Interaction interaction){
@@ -186,8 +184,8 @@ public class InteractionImporter {
         rtn.put("displayName", name);
         rtn.put("databaseName", "IntAct");
         rtn.put("score", interaction.getIntactScore());
-        rtn.put("accession", accession.toArray(new String[accession.size()]));
-        if (pubmeds != null) rtn.put("pubmed", pubmeds.toArray(new String[pubmeds.size()]));
+        rtn.put("accession", accession.toArray(new String[0]));
+        if (pubmeds != null) rtn.put("pubmed", pubmeds.toArray(new String[0]));
         rtn.put("url", interactionURL + String.join("%20OR%20", accession));
         rtn.put("schemaClass", UndirectedInteraction.class.getSimpleName());
         return rtn;
@@ -211,7 +209,7 @@ public class InteractionImporter {
             rtn.put("displayName", identifier);               //Unified to Reactome name
         }
 
-        Class schemaClass;
+        Class<?> schemaClass;
         Long refDbId;
         if (resource.getName().toLowerCase().contains("uniprot")) {
             refDbId = REACTOME_UNIPROT_REFERENCE_DATABASE;
@@ -341,7 +339,7 @@ public class InteractionImporter {
 
                         referenceEntityMap.computeIfAbsent(identifier, k -> new HashSet<>()).add(re.getDBID());
 
-                        Collection pes = re.getReferers(ReactomeJavaConstants.referenceEntity);
+                        Collection<?> pes = re.getReferers(ReactomeJavaConstants.referenceEntity);
                         if (pes != null) {
                             for (Object peAux : pes) {
                                 GKInstance pe = (GKInstance) peAux;
@@ -398,8 +396,6 @@ public class InteractionImporter {
         }
     }
 
-    private static Map<Long, InteractorResource> interactorResourceMap = new HashMap<>();
-
     private InteractorResource getInteractorResource(Interactor interactor){
         InteractorResource ir = interactorResourceMap.get(interactor.getInteractorResourceId());
         if(ir == null) {
@@ -413,18 +409,4 @@ public class InteractionImporter {
         return ir;
     }
 
-    private void updateProgressBar(long done, long total) {
-        if(done == total || (done > 0 && done % 10 == 0)) {
-            String format = "\rInteraction data import: %3d%% %s %c";
-            char[] rotators = {'|', '/', '—', '\\'};
-            double percent = (double) done / total;
-            StringBuilder progress = new StringBuilder(PROGRESS_BAR_WITH);
-            progress.append('|');
-            int i = 0;
-            for (; i < (int) (percent * PROGRESS_BAR_WITH); i++) progress.append("=");
-            for (; i < PROGRESS_BAR_WITH; i++) progress.append(" ");
-            progress.append('|');
-            System.out.printf(format, (int) (percent * 100), progress, rotators[(int) ((done - 1) % (rotators.length * 10)) / 10]);
-        }
-    }
 }

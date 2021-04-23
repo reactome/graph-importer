@@ -32,19 +32,19 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <reactome.graph.core>1.1.22</reactome.graph.core>
+        <reactome.graph.core>2.0.0-SNAPSHOT</reactome.graph.core>
         <reactome.base>2.0.0-SNAPSHOT</reactome.base>
-        <neo4j.version>3.5.18</neo4j.version>
+        <neo4j.version>4.2.4</neo4j.version>
         <interactor-core>1.0.15-SNAPSHOT</interactor-core>
 
-        <json.version>20090211</json.version>
+        <json.version>20210307</json.version>
     </properties>
 
     <dependencies>
         <!--Graph core dependency, needed for accessing the model-->
         <dependency>
             <groupId>org.reactome.server.graph</groupId>
-            <artifactId>graph-core</artifactId>
+            <artifactId>graph-core-ng</artifactId>
             <version>${reactome.graph.core}</version>
         </dependency>
         <!--Reactome-base for MYSQL Adapter-->
@@ -53,17 +53,12 @@
             <artifactId>reactome-base</artifactId>
             <version>${reactome.base}</version>
         </dependency>
-        <!--Neo4j batch importer-->
         <dependency>
             <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-kernel</artifactId>
-            <version>${neo4j.version}</version>
+            <artifactId>neo4j-batch-insert</artifactId>
+            <version>4.2.4</version>
         </dependency>
-        <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-lucene-index</artifactId>
-            <version>${neo4j.version}</version>
-        </dependency>
+
         <!--Jasp console reader-->
         <dependency>
             <groupId>com.martiansoftware</groupId>

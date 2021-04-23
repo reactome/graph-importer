@@ -2,8 +2,8 @@ package org.reactome.server.graph.batchimport;
 
 public class ReactomeAttribute {
 
-    private String attribute;
-    private PropertyType type;
+    private final String attribute;
+    private final PropertyType type;
 
     public enum PropertyType {
         //                  Allows
