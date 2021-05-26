@@ -6,7 +6,7 @@
     <artifactId>graph-importer</artifactId>
 
     <packaging>jar</packaging>
-    <version>1.1.0</version>
+    <version>2.0.0</version>
     <name>GraphImporter</name>
 
     <description>
@@ -19,25 +19,22 @@
         <url>http://www.ebi.ac.uk/</url>
     </organization>
 
-    <developers>
-        <developer>
-            <id>fkorn</id>
-            <name>Florian Korninger</name>
-        </developer>
-        <developer>
-            <id>fabregat</id>
-        </developer>
-    </developers>
-
     <properties>
+        <jdk.version>11</jdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <reactome.graph.core>2.0.0-SNAPSHOT</reactome.graph.core>
-        <reactome.base>2.0.0-SNAPSHOT</reactome.base>
-        <neo4j.version>4.2.4</neo4j.version>
-        <interactor-core>1.0.15-SNAPSHOT</interactor-core>
+        <reactome.base>2.1.0-SNAPSHOT</reactome.base>
+        <neo4j.version>4.2.6</neo4j.version>
+        <interactor-core>1.0.14</interactor-core>
+        <logback.version>1.2.3</logback.version>
+        <mysql.version>8.0.25</mysql.version>
+        <maven.compiler.version>3.8.1</maven.compiler.version>
+        <maven.assembly.version>3.3.0</maven.assembly.version>
 
         <json.version>20210307</json.version>
+        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
     </properties>
 
     <dependencies>
@@ -56,7 +53,7 @@
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-batch-insert</artifactId>
-            <version>4.2.4</version>
+            <version>${neo4j.version}</version>
         </dependency>
 
         <!--Jasp console reader-->
@@ -81,13 +78,13 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.1.10</version>
+            <version>${logback.version}</version>
         </dependency>
         <!-- Mysql connector -->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.47</version>
+            <version>${mysql.version}</version>
         </dependency>
     </dependencies>
 
@@ -142,15 +139,15 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>${jdk.version}</source>
+                    <target>${jdk.version}</target>
                 </configuration>
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>2.6</version>
+                <version>${maven-assembly-plugin.version}</version>
                 <configuration>
                     <archive>
                         <manifest>
