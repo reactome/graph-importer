@@ -61,7 +61,7 @@ pipeline
 				{
 					withCredentials([usernamePassword(credentialsId: 'mySQLUsernamePassword', passwordVariable: 'pass', usernameVariable: 'user')])
 					{
-						sh """java -jar target/GraphImporter-jar-with-dependencies.jar -h localhost -i -n ./graphdb -d current -u $user -p $pass """
+						sh """java -jar target/GraphImporter-jar-with-dependencies.jar -h localhost -i -n ./graphdb -d ${env.RELEASE_CURRENT_DB} -u $user -p $pass """
 					}
 				}
 			}
