@@ -2,102 +2,146 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <groupId>org.reactome.server.graph</groupId>
     <artifactId>graph-importer</artifactId>
-
-    <packaging>jar</packaging>
     <version>1.1.0</version>
-    <name>GraphImporter</name>
+    <packaging>jar</packaging>
 
+    <name>${project.groupId}:${project.artifactId}</name>
     <description>
         The Graph Importer is a executable jar file to convert data taken form the Reactome MySQL Database to a Neo4j Graph Database.
         For more information visit the reactome github repository.
     </description>
+    <url>https://github.com/reactome/graph-importer</url>
 
     <organization>
-        <name>The European Bioinformatics Institute</name>
-        <url>http://www.ebi.ac.uk/</url>
+        <name>Reactome</name>
+        <url>https://reactome.org</url>
     </organization>
+
+    <licenses>
+        <license>
+            <name></name>
+            <url></url>
+        </license>
+    </licenses>
 
     <developers>
         <developer>
             <id>fkorn</id>
             <name>Florian Korninger</name>
+            <roles>
+                <role>alumni</role>
+            </roles>
         </developer>
+
         <developer>
             <id>fabregat</id>
+            <name>Antonio Fabregat</name>
+            <roles>
+                <role>alumni</role>
+            </roles>
         </developer>
     </developers>
 
+    <scm>
+        <connection>scm:git:git://github.com/reactome/graph-importer.git</connection>
+        <developerConnection>scm:git:ssh://github.com:reactome/graph-importer.git</developerConnection>
+        <url>https://github.com/reactome/graph-importer/tree/master</url>
+    </scm>
+
     <properties>
+        <!-- dependencies -->
+        <neo4j.version>3.5.18</neo4j.version>
+        <jsap.version>2.1</jsap.version>
+        <json.version>20090211</json.version>
+        <logback.classic.version>1.1.10</logback.classic.version>
+        <mysql.connector.version>5.1.47</mysql.connector.version>
+        <reactome.base.version>2.1.0-SNAPSHOT</reactome.base.version>
+        <reactome.graph.core.version>1.1.26-SNAPSHOT</reactome.graph.core.version>
+        <reactome.interactor.core.version>1.0.15-SNAPSHOT</reactome.interactor.core.version>
+
+        <!-- build -->
+        <jdk.version>1.8</jdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <reactome.graph.core>1.1.26-SNAPSHOT</reactome.graph.core>
-        <reactome.base>2.1.0-SNAPSHOT</reactome.base>
-        <neo4j.version>3.5.18</neo4j.version>
-        <interactor-core>1.0.15-SNAPSHOT</interactor-core>
-
-        <json.version>20090211</json.version>
+        <!-- maven build and plugins -->
+        <maven.assembly.version>2.6</maven.assembly.version>
+        <maven.compiler.version>3.5.1</maven.compiler.version>
+        <maven.gpg.version>1.5</maven.gpg.version>
+        <maven.javadoc.version>2.10.3</maven.javadoc.version>
+        <maven.release.version>2.5.3</maven.release.version>
+        <maven.source.version>2.4</maven.source.version>
+        <nexus-staging-maven-plugin>1.6.7</nexus-staging-maven-plugin>
     </properties>
 
     <dependencies>
-        <!--Graph core dependency, needed for accessing the model-->
+        <!-- Graph core dependency, needed for accessing the model -->
         <dependency>
             <groupId>org.reactome.server.graph</groupId>
             <artifactId>graph-core</artifactId>
-            <version>${reactome.graph.core}</version>
+            <version>${reactome.graph.core.version}</version>
         </dependency>
-        <!--Reactome-base for MYSQL Adapter-->
+
+        <!-- Reactome-base for MySQL Adapter -->
         <dependency>
             <groupId>org.reactome.base</groupId>
             <artifactId>reactome-base</artifactId>
-            <version>${reactome.base}</version>
+            <version>${reactome.base.version}</version>
         </dependency>
-        <!--Neo4j batch importer-->
+
+        <!-- Neo4j batch importer -->
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-kernel</artifactId>
             <version>${neo4j.version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-lucene-index</artifactId>
             <version>${neo4j.version}</version>
         </dependency>
-        <!--Jasp console reader-->
+
+        <!-- Jsap console reader -->
         <dependency>
             <groupId>com.martiansoftware</groupId>
             <artifactId>jsap</artifactId>
             <version>2.1</version>
         </dependency>
-        <!--Org json importer-->
+
+        <!-- Org json importer -->
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>${json.version}</version>
         </dependency>
+
         <!-- SQLite JDBC -->
         <dependency>
             <groupId>org.reactome.server.interactors</groupId>
             <artifactId>interactor-core</artifactId>
-            <version>${interactor-core}</version>
+            <version>${reactome.interactor.core.version}</version>
         </dependency>
-        <!--Logback classic-->
+
+        <!-- Logback classic -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.1.10</version>
+            <version>${logback.classic.version}</version>
         </dependency>
-        <!-- Mysql connector -->
+
+        <!-- MySQL connector -->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.47</version>
+            <version>${mysql.connector.version}</version>
         </dependency>
     </dependencies>
 
     <repositories>
-        <!--Maven Central repository-->
+        <!-- Maven Central repository -->
         <repository>
             <id>mvn-central</id>
             <name>The Maven Central repository</name>
@@ -109,7 +153,8 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
-        <!--EBI repository-->
+
+        <!-- EBI repository -->
         <repository>
             <id>nexus-ebi-repo</id>
             <name>The EBI internal repository</name>
@@ -121,6 +166,7 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
+
         <!-- EBI SNAPSHOT repository -->
         <repository>
             <id>nexus-ebi-snapshot-repo</id>
@@ -135,27 +181,47 @@
         </repository>
     </repositories>
 
+    <!-- Configures the distribution to nexus repository -->
+    <distributionManagement>
+        <!-- Sonatype Release repo -->
+        <repository>
+            <id>ossrh</id>
+            <name>Sonatype Release Repository</name>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2</url>
+        </repository>
+
+        <!-- Sonatype SNAPSHOT repo -->
+        <snapshotRepository>
+            <id>ossrh</id>
+            <name>Sonatype Snapshot Repository</name>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
+
     <build>
         <finalName>${project.name}</finalName>
+
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
             </resource>
         </resources>
+
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>${maven.compiler.version}</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>${jdk.version}</source>
+                    <target>${jdk.version}</target>
                 </configuration>
             </plugin>
+
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>2.6</version>
+                <version>${maven.assembly.version}</version>
                 <configuration>
                     <archive>
                         <manifest>
@@ -176,7 +242,80 @@
                     </execution>
                 </executions>
             </plugin>
-            <!--Concatenate all versions of org.neo4j.kernel.impl.api.scan.NativeLabelScanStoreExtension from different jars with the same name-->
+
+            <!-- Nexus staging plugin for Sonatype deployment -->
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>${nexus-staging-maven-plugin}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
+
+            <!-- Generate source jar file -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven.source.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Generate JavaDoc jar file -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven.javadoc.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Signs deployed jar, source jar, and JavaDoc jar with GPG -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>${maven.gpg.version}</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Allows "release" mvn goal to deploy a SNAPSHOT or version release to Sonatype -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>${maven.release.version}</version>
+                <configuration>
+                    <autoVersionSubmodules>true</autoVersionSubmodules>
+                    <useReleaseProfile>false</useReleaseProfile>
+                    <releaseProfiles>release</releaseProfiles>
+                    <goals>deploy</goals>
+                </configuration>
+            </plugin>
+
+            <!-- Concatenate all versions of org.neo4j.kernel.impl.api.scan.NativeLabelScanStoreExtension from different jars with the same name -->
             <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
