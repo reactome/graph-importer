@@ -30,7 +30,7 @@ pipeline
 			{
 				script
 				{
-					sh "mvn clean package -DskipTests"
+					sh "mvn clean package -DskipTests -Dboot.repackage.skip=false"
 				}
 			}
 		}
@@ -61,7 +61,7 @@ pipeline
 				{
 					withCredentials([usernamePassword(credentialsId: 'mySQLUsernamePassword', passwordVariable: 'pass', usernameVariable: 'user')])
 					{
-						sh """java -jar target/GraphImporter-jar-with-dependencies.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
+						sh """java -jar target/GraphImporter.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
 					}
 				}
 			}
