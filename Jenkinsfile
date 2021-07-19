@@ -30,7 +30,7 @@ pipeline
 			{
 				script
 				{
-					sh "mvn clean package -DskipTests -Dboot.repackage.skip=false"
+					sh "mvn clean package -DskipTests"
 				}
 			}
 		}
@@ -61,7 +61,7 @@ pipeline
 				{
 					withCredentials([usernamePassword(credentialsId: 'mySQLUsernamePassword', passwordVariable: 'pass', usernameVariable: 'user')])
 					{
-						sh """java -jar target/GraphImporter.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
+						sh """java -jar target/GraphImporter-exec.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
 					}
 				}
 			}
@@ -123,7 +123,7 @@ pipeline
 							{
 								script
 								{
-									def qaSummary = sh(returnStdout: true, script: "java -jar target/graph-qa-jar-with-dependencies.jar -h localhost -u $graphdbUser -p $graphdbPassword -o ./$currentRelease -v").trim()
+									def qaSummary = sh(returnStdout: true, script: "java -jar target/graph-qa-exec.jar -h localhost -u $graphdbUser -p $graphdbPassword -o ./$currentRelease -v").trim()
 									sh "tar -czf ./$currentRelease.tgz ./$currentRelease"
 									emailext attachmentsPattern: "$currentRelease.tgz", body: '''Graph-qa has finished. Summary is:
 
