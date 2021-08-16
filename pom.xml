@@ -32,7 +32,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <reactome.graph.core>1.1.26-SNAPSHOT</reactome.graph.core>
+        <reactome.graph.core>1.1.27</reactome.graph.core>
         <reactome.base>2.1.0-SNAPSHOT</reactome.base>
         <neo4j.version>3.5.18</neo4j.version>
         <interactor-core>1.0.15-SNAPSHOT</interactor-core>
@@ -154,6 +154,7 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>2.6</version>
                 <configuration>
