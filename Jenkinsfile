@@ -73,7 +73,7 @@ pipeline
 				script
 				{
 					// Stop services that are using the graph database.
-					sh "service tomcat7 stop"
+					sh "service tomcat9 stop"
 					sh "service neo4j stop"
 				}
 				script
@@ -91,7 +91,7 @@ pipeline
 				{
 					// Start the services that were stopped.
 					sh "service neo4j start"
-					sh "service tomcat7 start"
+					sh "service tomcat9 start"
 				}
 			}
 		}
