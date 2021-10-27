@@ -61,7 +61,7 @@ pipeline
 				{
 					withCredentials([usernamePassword(credentialsId: 'mySQLUsernamePassword', passwordVariable: 'pass', usernameVariable: 'user')])
 					{
-						sh """java -jar target/GraphImporter-jar-with-dependencies.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
+						sh """java -jar target/GraphImporter-exec.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
 					}
 				}
 			}
@@ -73,7 +73,7 @@ pipeline
 				script
 				{
 					// Stop services that are using the graph database.
-					sh "service tomcat7 stop"
+					sh "service tomcat9 stop"
 					sh "service neo4j stop"
 				}
 				script
@@ -91,7 +91,7 @@ pipeline
 				{
 					// Start the services that were stopped.
 					sh "service neo4j start"
-					sh "service tomcat7 start"
+					sh "service tomcat9 start"
 				}
 			}
 		}
@@ -123,7 +123,7 @@ pipeline
 							{
 								script
 								{
-									def qaSummary = sh(returnStdout: true, script: "java -jar target/graph-qa-jar-with-dependencies.jar -h localhost -u $graphdbUser -p $graphdbPassword -o ./$currentRelease -v").trim()
+									def qaSummary = sh(returnStdout: true, script: "java -jar target/graph-qa-exec.jar -h localhost -u $graphdbUser -p $graphdbPassword -o ./$currentRelease -v").trim()
 									sh "tar -czf ./$currentRelease.tgz ./$currentRelease"
 									emailext attachmentsPattern: "$currentRelease.tgz", body: '''Graph-qa has finished. Summary is:
 

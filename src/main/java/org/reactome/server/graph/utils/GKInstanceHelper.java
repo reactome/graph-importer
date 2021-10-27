@@ -10,9 +10,9 @@ import java.util.Map;
 
 public class GKInstanceHelper {
 
-    private DiagramGeneratorFromDB diagramHelper;
+    private final DiagramGeneratorFromDB diagramHelper;
 
-    private Map<Long, GKInstance> hasDiagramCache = new HashMap<>();
+    private final Map<Long, GKInstance> hasDiagramCache = new HashMap<>();
 
     public GKInstanceHelper(MySQLAdaptor dba) {
         this.diagramHelper = new DiagramGeneratorFromDB();

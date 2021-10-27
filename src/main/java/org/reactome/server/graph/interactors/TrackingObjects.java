@@ -1,7 +1,7 @@
 package org.reactome.server.graph.interactors;
 
+import org.neo4j.batchinsert.BatchInserter;
 import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.reactome.server.graph.batchimport.ReactomeBatchImporter;
 import org.reactome.server.graph.domain.model.InstanceEdit;
 import org.reactome.server.graph.domain.model.Person;
@@ -18,8 +18,8 @@ import static org.reactome.server.graph.batchimport.ReactomeBatchImporter.*;
 
 class TrackingObjects {
 
-    private static RelationshipType author = RelationshipType.withName("author");
-    private static RelationshipType created = RelationshipType.withName("created");
+    private static final RelationshipType author = RelationshipType.withName("author");
+    private static final RelationshipType created = RelationshipType.withName("created");
 //    private static RelationshipType modified = RelationshipType.withName("modified");
 
     private static final DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -32,7 +32,7 @@ class TrackingObjects {
     }
 
     static Long createIntActReferenceDatabase(Map<Long, Long> dbIds, Long graphImporterUserNode, BatchInserter batchInserter) {
-        Class schemaClass = ReferenceDatabase.class;
+        Class<?> schemaClass = ReferenceDatabase.class;
         Map<String, Object> intact = new HashMap<>();
         intact.put("dbId", ++maxDbId);
         intact.put("displayName", "IntAct");
@@ -47,7 +47,7 @@ class TrackingObjects {
     }
 
     static Long createGraphImporterUserNode(BatchInserter batchInserter) {
-        Class schemaClass = Person.class;
+        Class<?> schemaClass = Person.class;
         Map<String, Object> grapUserNode = new HashMap<>();
         grapUserNode.put("dbId", ++maxDbId);
         grapUserNode.put("displayName", "Interactions Importer");
@@ -67,7 +67,7 @@ class TrackingObjects {
     }
 
     private static Long createInstanceEditNode(Long graphImporterUserNode, BatchInserter batchInserter) {
-        Class schemaClass = InstanceEdit.class;
+        Class<?> schemaClass = InstanceEdit.class;
         String dateTime = formatter.format(new Date());
         Map<String, Object> instanceEdit = new HashMap<>();
         instanceEdit.put("dbId", ++maxDbId);
