@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class TaxonomyHelper {
@@ -51,7 +52,7 @@ public class TaxonomyHelper {
 
             if (responseCode != 200) {
                 if (responseCode == 429 && httpConnection.getHeaderField("Retry-After") != null) {
-                    double sleepFloatingPoint = Double.valueOf(httpConnection.getHeaderField("Retry-After"));
+                    double sleepFloatingPoint = Double.parseDouble(httpConnection.getHeaderField("Retry-After"));
                     double sleepMillis = 1000 * sleepFloatingPoint;
                     try {
                         Thread.sleep((long) sleepMillis);
@@ -63,7 +64,7 @@ public class TaxonomyHelper {
                 throw new RuntimeException("Response code was not 200. Detected response was " + responseCode);
             }
 
-            String StringFromInputStream = IOUtils.toString(response, "UTF-8");
+            String StringFromInputStream = IOUtils.toString(response, StandardCharsets.UTF_8);
             JSONObject jsonObject = new JSONObject(StringFromInputStream);
 
             int parentTaxId = jsonObject.getJSONObject("parent").getInt("id");

@@ -15,7 +15,7 @@ The Gatch Importer generates the graph database dynamically depending on the Mod
 
 #### Data Import
 
-Reactome data can be imported without the script using the Main.java entry point. Use: ```java -jar BatchImporter-jar-with-dependencies.jar```
+Reactome data can be imported without the script using the Main.java entry point. Use: ```java -jar BatchImporter-exec.jar```
 
 :warning: **CAUTION:** In order for the import to succeed following steps must be ensured:
   1. All permissions to the specified target folder must be granted to the executing users of the jar file
@@ -65,8 +65,8 @@ A tool for importing reactome data import to the neo4j graphDb
 ```
 
 Example:
-```java
-java -jar GraphImporter-jar-with-dependencies \ 
+```bash
+java -jar GraphImporter-exec.jar \ 
      -h localhost \ 
      -s 3306 \
      -d reactome \ 
