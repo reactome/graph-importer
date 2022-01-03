@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-parent</artifactId>
-        <version>2.5.3</version>
+        <version>2.6.2</version>
     </parent>
 
     <properties>
@@ -31,7 +31,7 @@
         <main.class>org.reactome.server.graph.Main</main.class>
 
         <reactome.graph.core>2.0.0</reactome.graph.core>
-        <reactome.base>2.1.0-SNAPSHOT</reactome.base>
+        <reactome.base.core.version>1.0.0-SNAPSHOT</reactome.base.core.version>
         <neo4j.version>4.3.2</neo4j.version>
         <interactor-core>1.1.0</interactor-core>
         <logback.version>1.2.3</logback.version>
@@ -60,8 +60,8 @@
         <!--Reactome-base for MYSQL Adapter-->
         <dependency>
             <groupId>org.reactome.base</groupId>
-            <artifactId>reactome-base</artifactId>
-            <version>${reactome.base}</version>
+            <artifactId>reactome-base-core</artifactId>
+            <version>${reactome.base.core.version}</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
