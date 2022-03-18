@@ -30,8 +30,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <main.class>org.reactome.server.graph.Main</main.class>
 
-        <reactome.graph.core>2.0.0</reactome.graph.core>
-        <reactome.base>2.1.0</reactome.base>
+        <reactome.graph.core>2.0.1-SNAPSHOT</reactome.graph.core>
+        <reactome.base>2.1.0-SNAPSHOT</reactome.base>
         <neo4j.version>4.3.2</neo4j.version>
         <interactor-core>1.1.0</interactor-core>
         <logback.version>1.2.3</logback.version>
