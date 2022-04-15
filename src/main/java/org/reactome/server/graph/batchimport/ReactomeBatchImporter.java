@@ -337,6 +337,16 @@ public class ReactomeBatchImporter {
                 String attribute = reactomeAttribute.getAttribute();
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
                 switch (attribute) {
+                    case "doRelease": // Event
+                        Boolean doRelease = (Boolean) getObjectFromGkInstance(instance, "_"+attribute);
+                        properties.put(attribute, doRelease != null && doRelease);
+                        break;
+                    case "chainChangeLog": // ReferenceGeneProduct
+                        Object chainChangeLog = getObjectFromGkInstance(instance, "_"+attribute);
+                        if (chainChangeLog != null) {
+                            properties.put(attribute, chainChangeLog.toString());
+                        }
+                        break;
                     case "hasEHLD":
                         Boolean hasEHLD = (Boolean) getObjectFromGkInstance(instance, ReactomeJavaConstants.hasEHLD);
                         properties.put(attribute, hasEHLD != null && hasEHLD);
