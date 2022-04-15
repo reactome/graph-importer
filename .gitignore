@@ -30,6 +30,7 @@ local.properties
 logs
 reports
 parser-messages.txt
+lib
 
 #SQLit
 interaction-data.tmp.db
