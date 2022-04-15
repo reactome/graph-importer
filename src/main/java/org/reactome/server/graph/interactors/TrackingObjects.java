@@ -3,9 +3,9 @@ package org.reactome.server.graph.interactors;
 import org.neo4j.batchinsert.BatchInserter;
 import org.neo4j.graphdb.RelationshipType;
 import org.reactome.server.graph.batchimport.ReactomeBatchImporter;
-import org.reactome.server.graph.domain.model.InstanceEdit;
-import org.reactome.server.graph.domain.model.Person;
-import org.reactome.server.graph.domain.model.ReferenceDatabase;
+import org.reactome.server.graph.curator.domain.model.InstanceEdit;
+import org.reactome.server.graph.curator.domain.model.Person;
+import org.reactome.server.graph.curator.domain.model.ReferenceDatabase;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;

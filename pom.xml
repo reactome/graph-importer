@@ -45,11 +45,11 @@
     </properties>
 
     <dependencies>
-        <!--Graph core dependency, needed for accessing the model-->
+        <!--Graph core dependency, needed for accessing the model -->
         <dependency>
-            <groupId>org.reactome.server.graph</groupId>
-            <artifactId>graph-core</artifactId>
-            <version>${reactome.graph.core}</version>
+            <groupId>org.reactome.server.graph.curator</groupId>
+            <artifactId>graph-core-curator</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.reactome.server.interactors</groupId>

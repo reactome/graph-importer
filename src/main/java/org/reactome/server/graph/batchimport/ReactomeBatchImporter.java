@@ -16,11 +16,10 @@ import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.reactome.server.graph.Main;
-import org.reactome.server.graph.domain.annotations.ReactomeProperty;
-import org.reactome.server.graph.domain.annotations.ReactomeRelationship;
-import org.reactome.server.graph.domain.annotations.ReactomeTransient;
-import org.reactome.server.graph.domain.model.*;
-import org.reactome.server.graph.interactors.InteractionImporter;
+import org.reactome.server.graph.curator.domain.annotations.ReactomeProperty;
+import org.reactome.server.graph.curator.domain.annotations.ReactomeRelationship;
+import org.reactome.server.graph.curator.domain.annotations.ReactomeTransient;
+import org.reactome.server.graph.curator.domain.model.*;
 import org.reactome.server.graph.utils.GKInstanceHelper;
 import org.reactome.server.graph.utils.ProgressBarUtils;
 import org.slf4j.Logger;
@@ -55,8 +54,7 @@ public class ReactomeBatchImporter {
     private String neo4jVersion;
 
     private static final String DBID = "dbId";
-    private static final String STID = "stId";
-    private static final String OLD_STID = "oldStId";
+    private static final String STABLE_IDENTIFIER = "stableIdentifier";
     private static final Long TAXONOMY_ROOT = 164487L;
     private static final String TAXONOMY_ID = "taxId";
     private static final String IDENTIFIER = "identifier";
@@ -85,7 +83,6 @@ public class ReactomeBatchImporter {
     private static final DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private Set<String> trivialMolecules;
-    private InteractionImporter interactionImporter;
     private final GKInstanceHelper gkInstanceHelper;
 
     public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j,
@@ -122,7 +119,6 @@ public class ReactomeBatchImporter {
             importLogger.error("An error occurred while retrieving the trivial molecules", e);
         }
 
-        if(includeInteractors) interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile);
         gkInstanceHelper = new GKInstanceHelper(dba);
     }
 
@@ -157,8 +153,6 @@ public class ReactomeBatchImporter {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        if(interactionImporter != null) interactionImporter.addInteractionData(batchInserter);
 
         printConsistencyCheckReport();
 
@@ -274,33 +268,6 @@ public class ReactomeBatchImporter {
                             saveRelationships(id, inferredTo, attribute);
                         }
                         break;
-                    case "hasEncapsulatedEvent":
-                        GKInstance normalPathway = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.normalPathway);
-                        if (normalPathway == null) { //No encapsulation is taken into account for none infectious disease pathways
-                            try {
-                                GKInstance diagram = gkInstanceHelper.getHasDiagram(instance);
-                                if (diagram != null) {
-                                    PathwayDiagramXMLGenerator xmlGenerator = new PathwayDiagramXMLGenerator();
-                                    String xml = xmlGenerator.generateXMLForPathwayDiagram(diagram, instance);
-                                    Collection<GKInstance> encapsulatedEvents = new HashSet<>();
-                                    for (String line : StringUtils.split(xml, System.lineSeparator())) {
-
-                                        if (line.trim().startsWith("<org.gk.render.ProcessNode") && line.contains("reactomeId")) {
-                                            String dbId = line.split("reactomeId=\"")[1].split("\"")[0];
-                                            GKInstance target = dba.fetchInstance(Long.valueOf(dbId));
-                                            if (!gkInstanceHelper.pathwayContainsProcessNode(instance, target)) {
-                                                encapsulatedEvents.add(target);
-                                            }
-                                        }
-                                    }
-                                    diagram.deflate();
-                                    saveRelationships(id, encapsulatedEvents, attribute);
-                                }
-                            } catch (Exception e) {
-                                errorLogger.error("An exception occurred while trying to retrieve a diagram from entry with dbId: " + instance.getDBID() + "and name: " + instance.getDisplayName());
-                            }
-                        }
-                        break;
                     default:
                         if (isValidGkInstanceAttribute(instance, attribute)) {
                             Collection<GKInstance> relationships = getCollectionFromGkInstance(instance, attribute);
@@ -370,81 +337,9 @@ public class ReactomeBatchImporter {
                 String attribute = reactomeAttribute.getAttribute();
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
                 switch (attribute) {
-                    case STID:
-                        GKInstance stableIdentifier = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.stableIdentifier);
-                        if (stableIdentifier == null) continue;
-                        String stId = (String) getObjectFromGkInstance(stableIdentifier, ReactomeJavaConstants.identifier);
-                        if (stId == null) continue;
-                        properties.put(attribute, stId);
-                        //Stable identifier version
-                        String version = (String) getObjectFromGkInstance(stableIdentifier, ReactomeJavaConstants.identifierVersion);
-                        if (version != null) properties.put("stIdVersion", stId + "." + version);
-                        //Keeping old stable identifier if present
-                        String oldStId = (String) getObjectFromGkInstance(stableIdentifier, "oldIdentifier");
-                        if (oldStId != null) {
-                            if (oldStId.isEmpty()) { //Avoids adding empty OLD_STID in the graph database
-                                errorLogger.warn("'" + OLD_STID + "' is empty for " + instance.getDBID() + ": " + instance.getDisplayName());
-                            } else {
-                                properties.put(OLD_STID, oldStId);
-                            }
-                        }
-                        break;
-                    case "orcidId":
-                        GKInstance orcid = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
-                        if (orcid == null) continue;
-                        String orcidId = (String) getObjectFromGkInstance(orcid, ReactomeJavaConstants.identifier);
-                        if (orcidId == null) continue;
-                        properties.put(attribute, orcidId);
-                        break;
-                    case TAXONOMY_ID:
-                        GKInstance taxon = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
-                        String taxId = taxon != null ? (String) getObjectFromGkInstance(taxon, ReactomeJavaConstants.identifier) : null;
-                        if (taxId != null && !taxId.isEmpty()) {
-                            taxIdDbId.put(Integer.valueOf(taxId), instance.getDBID());
-                            properties.put(attribute, taxId);
-                        } else if (!instance.getDBID().equals(TAXONOMY_ROOT)) {
-                            errorLogger.warn("'" + TAXONOMY_ID + "' cannot be set for " + instance.getDBID() + ": " + instance.getDisplayName());
-                        }
-                        break;
-                    case "hasDiagram":
-                        GKInstance diagram = gkInstanceHelper.getHasDiagram(instance);
-                        boolean hasDiagram = diagram != null;
-                        properties.put(attribute, hasDiagram);
-                        if(hasDiagram){
-                            properties.put("diagramWidth", getObjectFromGkInstance(diagram, "width"));
-                            properties.put("diagramHeight", getObjectFromGkInstance(diagram, "height"));
-                            diagram.deflate();
-                        }
-                        properties.put(attribute, hasDiagram);
-                        break;
                     case "hasEHLD":
                         Boolean hasEHLD = (Boolean) getObjectFromGkInstance(instance, ReactomeJavaConstants.hasEHLD);
                         properties.put(attribute, hasEHLD != null && hasEHLD);
-                        break;
-                    case "isInDisease":
-                        GKInstance disease = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.disease);
-                        properties.put(attribute, disease != null);
-                        break;
-                    case "isInferred":
-                        GKInstance isInferredFrom = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.inferredFrom);
-                        properties.put(attribute, isInferredFrom != null);
-                        break;
-                    case "referenceType":
-                        GKInstance referenceEntity = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.referenceEntity);
-                        if (referenceEntity == null) continue;
-                        properties.put(attribute, referenceEntity.getSchemClass().getName());
-                        break;
-                    case "speciesName":
-                        if (instance.getSchemClass().isa(ReactomeJavaConstants.OtherEntity)) continue;
-                        if (instance.getSchemClass().isa(ReactomeJavaConstants.ChemicalDrug)) continue;
-                        List<?> speciesList = (List<?>) getCollectionFromGkInstance(instance, ReactomeJavaConstants.species);
-                        if (speciesList == null || speciesList.isEmpty()) continue;
-                        GKInstance species = (GKInstance) speciesList.get(0);
-                        properties.put(attribute, species.getDisplayName());
-                        break;
-                    case "trivial":
-                        String chebiId = (String) getObjectFromGkInstance(instance, "identifier");
-                        properties.put(attribute, chebiId != null && trivialMolecules.contains(chebiId));
                         break;
                     case "url": //Can be added or existing
                         if (!instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceDatabase) && !instance.getSchemClass().isa(ReactomeJavaConstants.Figure)) {
@@ -630,37 +525,34 @@ public class ReactomeBatchImporter {
     private void createConstraints() {
 
         createSchemaConstraint(DatabaseObject.class, DBID);
-        createSchemaConstraint(DatabaseObject.class, STID);
-
-        createSchemaConstraint(DatabaseObject.class, OLD_STID);
-        //createDeferredSchemaIndex(DatabaseObject.class, OLD_STID); //Alternative to the previous one in case of duplicates
+        createSchemaConstraint(DatabaseObject.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(Event.class, DBID);
-        createSchemaConstraint(Event.class, STID);
+        createSchemaConstraint(Event.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(Pathway.class, DBID);
-        createSchemaConstraint(Pathway.class, STID);
+        createSchemaConstraint(Pathway.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(ReactionLikeEvent.class, DBID);
-        createSchemaConstraint(ReactionLikeEvent.class, STID);
+        createSchemaConstraint(ReactionLikeEvent.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(Reaction.class, DBID);
-        createSchemaConstraint(Reaction.class, STID);
+        createSchemaConstraint(Reaction.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(PhysicalEntity.class, DBID);
-        createSchemaConstraint(PhysicalEntity.class, STID);
+        createSchemaConstraint(PhysicalEntity.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(Complex.class, DBID);
-        createSchemaConstraint(Complex.class, STID);
+        createSchemaConstraint(Complex.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(EntitySet.class, DBID);
-        createSchemaConstraint(EntitySet.class, STID);
+        createSchemaConstraint(EntitySet.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(GenomeEncodedEntity.class, DBID);
-        createSchemaConstraint(GenomeEncodedEntity.class, STID);
+        createSchemaConstraint(GenomeEncodedEntity.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(ReferenceEntity.class, DBID);
-        createSchemaConstraint(ReferenceEntity.class, STID);
+        createSchemaConstraint(ReferenceEntity.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(Taxon.class, TAXONOMY_ID);
         createSchemaConstraint(Species.class, TAXONOMY_ID);
