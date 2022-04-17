@@ -38,6 +38,7 @@ import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
 
@@ -77,6 +78,15 @@ public class ReactomeBatchImporter {
     private static final Map<Integer, Long> taxIdDbId = new HashMap<>();
 
     private static final Set<Long> topLevelPathways = new HashSet<>();
+
+    private static final List<String> curationOnlyClassNames = Arrays.asList(
+            "_DeletedInstance",
+            ReactomeJavaConstants._Deleted,
+            ReactomeJavaConstants._Release,
+            ReactomeJavaConstants._UpdateTracker,
+            ReactomeJavaConstants.FrontPage,
+            ReactomeJavaConstants.PathwayDiagram
+    );
 
     private static int total;
 
@@ -135,6 +145,17 @@ public class ReactomeBatchImporter {
         }
 
         try {
+            // Import Curation model-only classes
+            for (String className : curationOnlyClassNames) {
+                Iterator iter = dba.fetchInstancesByClass(className).iterator();
+                while (iter.hasNext()) {
+                    GKInstance instance = (GKInstance) iter.next();
+                    if (!dbIds.containsKey(instance.getDBID())) {
+                        importGkInstance(instance);
+                    }
+                }
+            }
+            // Import pathways
             List<GKInstance> tlps = getTopLevelPathways();
             importLogger.info("Started importing " + tlps.size() + " top level pathways");
             System.out.println("Started importing " + tlps.size() + " top level pathways...\n");
@@ -337,12 +358,24 @@ public class ReactomeBatchImporter {
                 String attribute = reactomeAttribute.getAttribute();
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
                 switch (attribute) {
+                    case "className": // _DeletedInstance
+                        if (instance.getSchemClass().getName().equals("_DeletedInstance")) {
+                            String className = (String) getObjectFromGkInstance(instance, "class");
+                            properties.put(attribute, className);
+                        }
+                        break;
+                    case "release": // _UpdateTracker
+                        if (instance.getSchemClass().getName().equals("_UpdateTracker")) {
+                            _Release className = (_Release) getObjectFromGkInstance(instance, "_" + attribute);
+                            properties.put(attribute, className);
+                        }
+                        break;
                     case "doRelease": // Event
-                        Boolean doRelease = (Boolean) getObjectFromGkInstance(instance, "_"+attribute);
+                        Boolean doRelease = (Boolean) getObjectFromGkInstance(instance, "_" + attribute);
                         properties.put(attribute, doRelease != null && doRelease);
                         break;
                     case "chainChangeLog": // ReferenceGeneProduct
-                        Object chainChangeLog = getObjectFromGkInstance(instance, "_"+attribute);
+                        Object chainChangeLog = getObjectFromGkInstance(instance, "_" + attribute);
                         if (chainChangeLog != null) {
                             properties.put(attribute, chainChangeLog.toString());
                         }
@@ -385,12 +418,19 @@ public class ReactomeBatchImporter {
         if (primitiveListAttributesMap.containsKey(clazz)) {
             for (ReactomeAttribute reactomeAttribute : primitiveListAttributesMap.get(clazz)) {
                 String attribute = reactomeAttribute.getAttribute();
+
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
                 if (isValidGkInstanceAttribute(instance, attribute)) {
                     Collection<?> values = getCollectionFromGkInstance(instance, attribute);
                     if (isConsistent(instance, values, attribute, type)) {
                         //noinspection SuspiciousToArrayCall,ToArrayCallWithZeroLengthArrayArgument
-                        properties.put(attribute, values.toArray(new String[values.size()]));
+                        if (!values.isEmpty() && values.iterator().next().getClass().getSimpleName().equals("Integer")) {
+                            // e.g. _Deleted.deletedInstanceDB_ID
+                            properties.put(attribute, values.stream().map(x ->
+                                    Integer.toString((int) x)).collect(Collectors.toList()).toArray(new String[values.size()]));
+                        } else {
+                            properties.put(attribute, values.toArray(new String[values.size()]));
+                        }
                     }
                 }
             }
