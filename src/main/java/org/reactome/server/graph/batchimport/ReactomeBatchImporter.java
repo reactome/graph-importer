@@ -9,6 +9,8 @@ import org.gk.model.GKInstance;
 import org.gk.model.ReactomeJavaConstants;
 import org.gk.pathwaylayout.PathwayDiagramXMLGenerator;
 import org.gk.persistence.MySQLAdaptor;
+import org.gk.schema.GKSchemaAttribute;
+import org.gk.schema.GKSchemaClass;
 import org.gk.schema.InvalidClassException;
 import org.neo4j.batchinsert.BatchInserter;
 import org.neo4j.batchinsert.BatchInserters;
@@ -145,7 +147,8 @@ public class ReactomeBatchImporter {
         }
 
         try {
-            // Import Curation model-only classes
+            // 1. Import Curation model-only classes
+            addSchema(dba.getSchema().getTimestamp());
             for (String className : curationOnlyClassNames) {
                 Iterator iter = dba.fetchInstancesByClass(className).iterator();
                 while (iter.hasNext()) {
@@ -155,7 +158,7 @@ public class ReactomeBatchImporter {
                     }
                 }
             }
-            // Import pathways
+            // 2. Import pathways
             List<GKInstance> tlps = getTopLevelPathways();
             importLogger.info("Started importing " + tlps.size() + " top level pathways");
             System.out.println("Started importing " + tlps.size() + " top level pathways...\n");
@@ -170,7 +173,11 @@ public class ReactomeBatchImporter {
                 int min = (int) ((elapsedTime / (1000 * 60)) % 60);
                 importLogger.info(instance.getDisplayName() + " was processed within: " + min + " min " + sec + " sec " + ms + " ms");
             }
-            if (barComplete) ProgressBarUtils.completeProgressBar(total); //This is just forcing a 100% in the progress bar
+            // 3. Import the sequence for minting dbIds
+            addDbIdSeq();
+
+            if (barComplete)
+                ProgressBarUtils.completeProgressBar(total); //This is just forcing a 100% in the progress bar
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -196,7 +203,29 @@ public class ReactomeBatchImporter {
     }
 
     /**
+     * Schema node will be used to store the timestamp only
+     */
+    private void addSchema(String timestamp) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("timestamp", timestamp);
+        batchInserter.createNode(properties, Label.label("Schema"));
+    }
+
+    /**
+     * Insert node that will be used for minting dbIds when new instances are added
+     */
+    private void addDbIdSeq() {
+        // initialDbId initial dbId that will be minted = max (dbIds.keys()) + 1
+        Long initialDBID = Collections.max(new ArrayList<Long>(dbIds.keySet())) + 1;
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("key", "dbIdSeq");
+        properties.put("value", initialDBID);
+        batchInserter.createNode(properties, Label.label("Seq"));
+    }
+
+    /**
      * Default 3.5.x
+     *
      * @return neo4j installed in the system that is running on the system.
      */
     private String getNeo4jVersion() {
