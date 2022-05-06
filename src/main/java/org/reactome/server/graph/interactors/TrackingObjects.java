@@ -1,5 +1,6 @@
 package org.reactome.server.graph.interactors;
 
+import org.gk.model.ReactomeJavaConstants;
 import org.neo4j.batchinsert.BatchInserter;
 import org.neo4j.graphdb.RelationshipType;
 import org.reactome.server.graph.batchimport.ReactomeBatchImporter;
@@ -34,8 +35,8 @@ class TrackingObjects {
     static Long createIntActReferenceDatabase(Map<Long, Long> dbIds, Long graphImporterUserNode, BatchInserter batchInserter) {
         Class<?> schemaClass = ReferenceDatabase.class;
         Map<String, Object> intact = new HashMap<>();
-        intact.put("dbId", ++maxDbId);
-        intact.put("displayName", "IntAct");
+        intact.put(ReactomeJavaConstants.DB_ID, ++maxDbId);
+        intact.put(ReactomeJavaConstants._displayName, "IntAct");
         intact.put("name", Collections.singletonList("IntAct").toArray(new String[1]));
         intact.put("schemaClass", schemaClass.getSimpleName());
         intact.put("url", "https://www.ebi.ac.uk/intact");
@@ -49,8 +50,8 @@ class TrackingObjects {
     static Long createGraphImporterUserNode(BatchInserter batchInserter) {
         Class<?> schemaClass = Person.class;
         Map<String, Object> grapUserNode = new HashMap<>();
-        grapUserNode.put("dbId", ++maxDbId);
-        grapUserNode.put("displayName", "Interactions Importer");
+        grapUserNode.put(ReactomeJavaConstants.DB_ID, ++maxDbId);
+        grapUserNode.put(ReactomeJavaConstants._displayName, "Interactions Importer");
         grapUserNode.put("firstname", "Interactions Importer");
         grapUserNode.put("surname", "Script");
         grapUserNode.put("initial", "AF");
@@ -70,8 +71,8 @@ class TrackingObjects {
         Class<?> schemaClass = InstanceEdit.class;
         String dateTime = formatter.format(new Date());
         Map<String, Object> instanceEdit = new HashMap<>();
-        instanceEdit.put("dbId", ++maxDbId);
-        instanceEdit.put("displayName", "Interactions Importer, " + dateTime);
+        instanceEdit.put(ReactomeJavaConstants.DB_ID, ++maxDbId);
+        instanceEdit.put(ReactomeJavaConstants._displayName, "Interactions Importer, " + dateTime);
         instanceEdit.put("dateTime", dateTime);
         instanceEdit.put("schemaClass", schemaClass.getSimpleName());
         Long id = batchInserter.createNode(instanceEdit, ReactomeBatchImporter.getLabels(schemaClass));

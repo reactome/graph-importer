@@ -4,13 +4,9 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.ClassUtils;
 import org.apache.commons.lang.IllegalClassException;
-import org.apache.commons.lang.StringUtils;
 import org.gk.model.GKInstance;
 import org.gk.model.ReactomeJavaConstants;
-import org.gk.pathwaylayout.PathwayDiagramXMLGenerator;
 import org.gk.persistence.MySQLAdaptor;
-import org.gk.schema.GKSchemaAttribute;
-import org.gk.schema.GKSchemaClass;
 import org.gk.schema.InvalidClassException;
 import org.neo4j.batchinsert.BatchInserter;
 import org.neo4j.batchinsert.BatchInserters;
@@ -22,7 +18,6 @@ import org.reactome.server.graph.curator.domain.annotations.ReactomeProperty;
 import org.reactome.server.graph.curator.domain.annotations.ReactomeRelationship;
 import org.reactome.server.graph.curator.domain.annotations.ReactomeTransient;
 import org.reactome.server.graph.curator.domain.model.*;
-import org.reactome.server.graph.utils.GKInstanceHelper;
 import org.reactome.server.graph.utils.ProgressBarUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,13 +28,11 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
 import java.util.stream.Collectors;
 
 import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
@@ -56,13 +49,11 @@ public class ReactomeBatchImporter {
     private static String DATA_DIR;
     private String neo4jVersion;
 
-    private static final String DBID = "dbId";
     private static final String STABLE_IDENTIFIER = "stableIdentifier";
     private static final Long TAXONOMY_ROOT = 164487L;
     private static final String TAXONOMY_ID = "taxId";
     private static final String IDENTIFIER = "identifier";
     private static final String VARIANT_IDENTIFIER = "variantIdentifier";
-    private static final String NAME = "displayName";
 
     public static final String STOICHIOMETRY = "stoichiometry";
     public static final String ORDER = "order";
@@ -90,12 +81,14 @@ public class ReactomeBatchImporter {
             ReactomeJavaConstants.PathwayDiagram
     );
 
+    private static final List<String> nonExistentClassNames =
+            Arrays.asList("ReactionCoordinates","ConcurrentEventSet");
+
     private static int total;
 
     private static final DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private Set<String> trivialMolecules;
-    private final GKInstanceHelper gkInstanceHelper;
 
     public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j,
                                  boolean includeInteractors, String interactorsFile, String neo4jVersion) {
@@ -107,8 +100,6 @@ public class ReactomeBatchImporter {
 
             total = (int) dba.getClassInstanceCount(ReactomeJavaConstants.DatabaseObject);
             total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants.StableIdentifier);
-            total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants.PathwayDiagramItem);
-            total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants.ReactionCoordinates);
             total = total - (int) dba.getClassInstanceCount(ReactomeJavaConstants._Release);
             importLogger.info("Established connection to Reactome database");
         } catch (SQLException | InvalidClassException e) {
@@ -130,8 +121,6 @@ public class ReactomeBatchImporter {
         } catch (IOException e) {
             importLogger.error("An error occurred while retrieving the trivial molecules", e);
         }
-
-        gkInstanceHelper = new GKInstanceHelper(dba);
     }
 
     public void importAll(boolean barComplete) throws IOException {
@@ -196,7 +185,9 @@ public class ReactomeBatchImporter {
     private void addDbInfo() throws Exception {
         Map<String, Object> properties = new HashMap<>();
         properties.put("name", dba.getDBName());
-        properties.put("version", dba.getReleaseNumber());
+        Integer releaseNumber = dba.getReleaseNumber();
+        if (releaseNumber == null) releaseNumber = 1;
+        properties.put("version", releaseNumber);
         properties.put("checksum", getDatabaseChecksum());
         properties.put("neo4j", getNeo4jVersion());
         batchInserter.createNode(properties, Label.label("DBInfo"));
@@ -359,7 +350,7 @@ public class ReactomeBatchImporter {
          */
         Map<String, Object> properties = new HashMap<>();
         properties.put("schemaClass", schemaClass);
-        properties.put(DBID, instance.getDBID());
+        properties.put(ReactomeJavaConstants.DB_ID, instance.getDBID());
         if (instance.getDisplayName() != null) {
             // TO fix Different Styles in Person display Name (example Jupe, Steven or Jupe, S)
             if (instance.getSchemClass().isa(ReactomeJavaConstants.Person)) {
@@ -372,9 +363,9 @@ public class ReactomeBatchImporter {
                     if (firstName != null) name = ", " + firstName;
                 }
                 String surname = (String) getObjectFromGkInstance(instance, ReactomeJavaConstants.surname);
-                properties.put(NAME, surname + name);
+                properties.put(ReactomeJavaConstants._displayName, surname + name);
             } else {
-                properties.put(NAME, instance.getDisplayName());
+                properties.put(ReactomeJavaConstants._displayName, instance.getDisplayName());
             }
         } else {
             //These guys will also be reported in one of the GraphQA tests in the graph-qa project
@@ -386,28 +377,14 @@ public class ReactomeBatchImporter {
             for (ReactomeAttribute reactomeAttribute : primitiveAttributesMap.get(clazz)) {
                 String attribute = reactomeAttribute.getAttribute();
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
+                if (instance.getSchemClass().getName().equals("_DeletedInstance")) {
+                    Boolean val = true;
+                }
                 switch (attribute) {
                     case "className": // _DeletedInstance
-                        if (instance.getSchemClass().getName().equals("_DeletedInstance")) {
-                            String className = (String) getObjectFromGkInstance(instance, "class");
-                            properties.put(attribute, className);
-                        }
-                        break;
-                    case "release": // _UpdateTracker
-                        if (instance.getSchemClass().getName().equals("_UpdateTracker")) {
-                            _Release className = (_Release) getObjectFromGkInstance(instance, "_" + attribute);
-                            properties.put(attribute, className);
-                        }
-                        break;
-                    case "doRelease": // Event
-                        Boolean doRelease = (Boolean) getObjectFromGkInstance(instance, "_" + attribute);
-                        properties.put(attribute, doRelease != null && doRelease);
-                        break;
-                    case "chainChangeLog": // ReferenceGeneProduct
-                        Object chainChangeLog = getObjectFromGkInstance(instance, "_" + attribute);
-                        if (chainChangeLog != null) {
-                            properties.put(attribute, chainChangeLog.toString());
-                        }
+                        Object value = getObjectFromGkInstance(instance, "class");
+                        properties.put("className", value);
+                        Boolean val = true;
                         break;
                     case "hasEHLD":
                         Boolean hasEHLD = (Boolean) getObjectFromGkInstance(instance, ReactomeJavaConstants.hasEHLD);
@@ -438,7 +415,15 @@ public class ReactomeBatchImporter {
                         }
                         break;
                     default: //Here we are in a none graph-added field. The field content has to be treated based on the schema definition
+                        if (curationOnlyClassNames.contains(instance.getSchemClass().getName())) {
+                            String className = (String) getObjectFromGkInstance(instance, "class");
+                            if (nonExistentClassNames.contains(className)) {
+                                // Avoid IllegalClassException for non-existent classes
+                                continue;
+                            }
+                        }
                         defaultAction(instance, attribute, properties, type);
+
                 }
             }
         }
@@ -474,7 +459,7 @@ public class ReactomeBatchImporter {
     }
 
     //saveDatabaseObject default option
-    private void defaultAction(GKInstance instance, String attribute, Map<String, Object> properties, ReactomeAttribute.PropertyType type){
+    private void defaultAction(GKInstance instance, String attribute, Map<String, Object> properties, ReactomeAttribute.PropertyType type) {
         if (isValidGkInstanceAttribute(instance, attribute)) {
             Object value = getObjectFromGkInstance(instance, attribute);
             if (isConsistent(instance, value, attribute, type)) {
@@ -603,34 +588,34 @@ public class ReactomeBatchImporter {
      */
     private void createConstraints() {
 
-        createSchemaConstraint(DatabaseObject.class, DBID);
+        createSchemaConstraint(DatabaseObject.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(DatabaseObject.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(Event.class, DBID);
+        createSchemaConstraint(Event.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(Event.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(Pathway.class, DBID);
+        createSchemaConstraint(Pathway.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(Pathway.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(ReactionLikeEvent.class, DBID);
+        createSchemaConstraint(ReactionLikeEvent.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(ReactionLikeEvent.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(Reaction.class, DBID);
+        createSchemaConstraint(Reaction.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(Reaction.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(PhysicalEntity.class, DBID);
+        createSchemaConstraint(PhysicalEntity.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(PhysicalEntity.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(Complex.class, DBID);
+        createSchemaConstraint(Complex.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(Complex.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(EntitySet.class, DBID);
+        createSchemaConstraint(EntitySet.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(EntitySet.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(GenomeEncodedEntity.class, DBID);
+        createSchemaConstraint(GenomeEncodedEntity.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(GenomeEncodedEntity.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(ReferenceEntity.class, DBID);
+        createSchemaConstraint(ReferenceEntity.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(ReferenceEntity.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(Taxon.class, TAXONOMY_ID);
@@ -704,8 +689,8 @@ public class ReactomeBatchImporter {
      * @param instance the instance for which the class name is required
      * @return a String with the className to be assigned to the instance conversion
      */
-    private static String getClassName(GKInstance instance){
-        if(instance.getSchemClass().isa("Drug") && instance.getSchemClass().isValidAttribute(ReactomeJavaConstants.drugType)) {
+    private static String getClassName(GKInstance instance) {
+        if (instance.getSchemClass().isa("Drug") && instance.getSchemClass().isValidAttribute(ReactomeJavaConstants.drugType)) {
             try {
                 GKInstance drugType = (GKInstance) instance.getAttributeValue(ReactomeJavaConstants.drugType);
                 return DatabaseObject.class.getPackage().getName() + "." + drugType.getDisplayName();
@@ -869,7 +854,7 @@ public class ReactomeBatchImporter {
                 rtn = instance.getAttributeValuesList(attribute);
                 //In the converter we assume that the empty lists are the result of defensive programming in the
                 //GKInstance layer, so we turn those to null to reduce the number of field category check reports
-                rtn = ( rtn == null || rtn.isEmpty() ) ? null : rtn;
+                rtn = (rtn == null || rtn.isEmpty()) ? null : rtn;
             } catch (Exception e) {
                 errorLogger.error("An error occurred when trying to retrieve the '" + attribute + "' from instance with DbId:"
                         + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
@@ -892,7 +877,7 @@ public class ReactomeBatchImporter {
             rtn = instance.getReferers(attribute);
             //In the converter we assume that the empty lists are the result of defensive programming in the
             //GKInstance layer, so we turn those to null to reduce the number of field category check reports
-            rtn = ( rtn == null || rtn.isEmpty() ) ? null : rtn;
+            rtn = (rtn == null || rtn.isEmpty()) ? null : rtn;
         } catch (Exception e) {
             errorLogger.error("An error occurred when trying to retrieve referrals for '" + attribute + "' from instance with DbId:"
                     + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
@@ -940,10 +925,10 @@ public class ReactomeBatchImporter {
             double total = checkSumQueries.size();
             int i = 0;
             for (String checkSumQuery : checkSumQueries) {
-                System.out.print(prefix + Math.round((++i/total) * 100) + "% (please wait...)");
+                System.out.print(prefix + Math.round((++i / total) * 100) + "% (please wait...)");
                 PreparedStatement css = dbaConn.prepareStatement(checkSumQuery);
                 ResultSet cs = css.executeQuery();
-                if(cs.next()) checkSum += cs.getLong("Checksum");
+                if (cs.next()) checkSum += cs.getLong("Checksum");
                 cs.close();
             }
             System.out.println("\rDatabase checksum successfully calculated: " + checkSum);
@@ -956,18 +941,19 @@ public class ReactomeBatchImporter {
 
     //##################################### NEXT BIT IS USED FOR CONSISTENCY CHECK #####################################
 
-    private boolean isConsistent(GKInstance instance, Object value, String attribute, ReactomeAttribute.PropertyType type){
+    private boolean isConsistent(GKInstance instance, Object value, String attribute, ReactomeAttribute.PropertyType type) {
         boolean rtn = false;
+        String className = instance.getSchemClass().getName();
         if (type == null) return true;
         if (value == null) {
             if (!type.allowsNull) {
                 if (TAXONOMY_ROOT.equals(instance.getDBID()))
                     return true; //Do not report the TAXONOMY_ROOT missing superTaxon
-                addConsistencyCheckEntry(instance.getSchemClass().getName(), attribute, type, "null", instance.getDBID(), instance.getDisplayName());
+                addConsistencyCheckEntry(className, attribute, type, "null", instance.getDBID(), instance.getDisplayName());
             }
         } else if (value instanceof Collection ? ((Collection<?>) value).isEmpty() : value.toString().isEmpty()) {
             if (!type.allowsEmpty) {
-                addConsistencyCheckEntry(instance.getSchemClass().getName(), attribute, type, "empty", instance.getDBID(), instance.getDisplayName());
+                addConsistencyCheckEntry(className, attribute, type, "empty", instance.getDBID(), instance.getDisplayName());
             }
         } else {
             rtn = true;
@@ -981,10 +967,14 @@ public class ReactomeBatchImporter {
         className = className.equals(ReactionLikeEvent.class.getSimpleName()) ? "ReactionlikeEvent" : className;
         try {
             switch (dba.fetchSchema().getClassByName(className).getAttribute(attribute).getCategory()) {
-                case 1: return ReactomeAttribute.PropertyType.MANDATORY;
-                case 2: return ReactomeAttribute.PropertyType.REQUIRED;
-                case 3: return ReactomeAttribute.PropertyType.OPTIONAL;
-                case 4: return ReactomeAttribute.PropertyType.NOMANUALEDIT;
+                case 1:
+                    return ReactomeAttribute.PropertyType.MANDATORY;
+                case 2:
+                    return ReactomeAttribute.PropertyType.REQUIRED;
+                case 3:
+                    return ReactomeAttribute.PropertyType.OPTIONAL;
+                case 4:
+                    return ReactomeAttribute.PropertyType.NOMANUALEDIT;
             }
         } catch (Exception e) { /* Nothing here */ }
         importLogger.info("No category found for attribute '" + attribute + "' in class '" + className + "'. Set to OPTIONAL.");
@@ -997,7 +987,7 @@ public class ReactomeBatchImporter {
     private int consistencyLoggerEntries = 0;
 
     private void addConsistencyCheckEntry(String className, String attribute, ReactomeAttribute.PropertyType type, String error, Long dbId, String displayName) {
-        consistency.computeIfAbsent(className, k -> new HashMap<>()).computeIfAbsent(attribute, k-> new HashSet<>()).add(dbId);
+        consistency.computeIfAbsent(className, k -> new HashMap<>()).computeIfAbsent(attribute, k -> new HashSet<>()).add(dbId);
         if (consistencyLoggerEntries == 0) {
             consistencyCheckReportLogger.error("SchemaClass,Attribute,Category,Error,DbId,DisplayName");
         }
@@ -1005,8 +995,8 @@ public class ReactomeBatchImporter {
         consistencyLoggerEntries++;
     }
 
-    private void printConsistencyCheckReport(){
-        if(consistencyLoggerEntries == 0) return;
+    private void printConsistencyCheckReport() {
+        if (consistencyLoggerEntries == 0) return;
         String aux = consistencyLoggerEntries == 1 ? "entry" : "entries";
         String message = String.format("The consistency check finished reporting %,d %s as follows:", consistencyLoggerEntries, aux);
         List<String> lines = new ArrayList<>();
