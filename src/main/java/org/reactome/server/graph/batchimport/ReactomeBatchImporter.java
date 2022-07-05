@@ -377,21 +377,21 @@ public class ReactomeBatchImporter {
             for (ReactomeAttribute reactomeAttribute : primitiveAttributesMap.get(clazz)) {
                 String attribute = reactomeAttribute.getAttribute();
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
-                if (instance.getSchemClass().getName().equals("_DeletedInstance")) {
-                    Boolean val = true;
-                }
                 switch (attribute) {
-                    case "className": // _DeletedInstance
-                        Object value = getObjectFromGkInstance(instance, "class");
-                        properties.put("className", value);
-                        Boolean val = true;
+                    case "className":
+                        if (instance.getSchemClass().getName().equals("_DeletedInstance")) {
+                            Object value = getObjectFromGkInstance(instance, "class");
+                            properties.put("className", value);
+                        }
                         break;
                     case "hasEHLD":
                         Boolean hasEHLD = (Boolean) getObjectFromGkInstance(instance, ReactomeJavaConstants.hasEHLD);
                         properties.put(attribute, hasEHLD != null && hasEHLD);
                         break;
-                    case "url": //Can be added or existing
-                        if (!instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceDatabase) && !instance.getSchemClass().isa(ReactomeJavaConstants.Figure)) {
+                    case "url":
+                        if (!instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceDatabase)
+                                && !instance.getSchemClass().isa(ReactomeJavaConstants.Figure)
+                                && !instance.getSchemClass().isa(ReactomeJavaConstants.Person)) {
                             GKInstance referenceDatabase = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.referenceDatabase);
                             if (referenceDatabase == null) continue;
                             String databaseName = referenceDatabase.getDisplayName();
@@ -415,13 +415,6 @@ public class ReactomeBatchImporter {
                         }
                         break;
                     default: //Here we are in a none graph-added field. The field content has to be treated based on the schema definition
-                        if (curationOnlyClassNames.contains(instance.getSchemClass().getName())) {
-                            String className = (String) getObjectFromGkInstance(instance, "class");
-                            if (nonExistentClassNames.contains(className)) {
-                                // Avoid IllegalClassException for non-existent classes
-                                continue;
-                            }
-                        }
                         defaultAction(instance, attribute, properties, type);
 
                 }
@@ -490,22 +483,24 @@ public class ReactomeBatchImporter {
         if (relationName.equals("modified")) {
             try {
                 GKInstance latestModified = objects.iterator().next();
-                Date latestDate = formatter.parse((String) getObjectFromGkInstance(latestModified, ReactomeJavaConstants.dateTime));
-                for (Object object : objects) {
-                    GKInstance gkInstance = (GKInstance) object;
-                    //All go to discarded and the chosen one will be removed
-                    if (!dbIds.containsKey(gkInstance.getDBID())) discarded.add(gkInstance.getDBID());
-                    Date date = formatter.parse((String) getObjectFromGkInstance(gkInstance, ReactomeJavaConstants.dateTime));
-                    if (latestDate.before(date)) {
-                        latestDate = date;
-                        latestModified = gkInstance;
+                if (latestModified.getAttributeValueNoCheck("modified") != null) {
+                    Date latestDate = formatter.parse((String) getObjectFromGkInstance(latestModified, ReactomeJavaConstants.dateTime));
+                    for (Object object : objects) {
+                        GKInstance gkInstance = (GKInstance) object;
+                        //All go to discarded and the chosen one will be removed
+                        if (!dbIds.containsKey(gkInstance.getDBID())) discarded.add(gkInstance.getDBID());
+                        Date date = formatter.parse((String) getObjectFromGkInstance(gkInstance, ReactomeJavaConstants.dateTime));
+                        if (latestDate.before(date)) {
+                            latestDate = date;
+                            latestModified = gkInstance;
+                        }
                     }
+                    objects.clear();
+                    objects.add(latestModified);
+                    discarded.remove(latestModified.getDBID());
                 }
-                objects.clear();
-                objects.add(latestModified);
-                discarded.remove(latestModified.getDBID());
             } catch (Exception e) {
-                importLogger.error("Problem while filtering tbe 'modified' relationship for " + oldId, e);
+                importLogger.error("Problem while filtering the 'modified' relationship for " + oldId, e);
             }
         }
 
@@ -620,10 +615,6 @@ public class ReactomeBatchImporter {
 
         createSchemaConstraint(Taxon.class, TAXONOMY_ID);
         createSchemaConstraint(Species.class, TAXONOMY_ID);
-
-        //Since the same author might be several times, due to the merging of different Reactome
-        //databases in the past, there cannot be a schema constrain but an index over this field
-        createDeferredSchemaIndex(Person.class, "orcidId");
 
         createDeferredSchemaIndex(LiteratureReference.class, "pubMedIdentifier");
         createDeferredSchemaIndex(ReferenceEntity.class, IDENTIFIER);
