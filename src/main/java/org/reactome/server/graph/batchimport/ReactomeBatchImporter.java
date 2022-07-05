@@ -597,8 +597,8 @@ public class ReactomeBatchImporter {
         createSchemaConstraint(Pathway.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(Pathway.class, STABLE_IDENTIFIER);
 
-        createSchemaConstraint(ReactionLikeEvent.class, ReactomeJavaConstants.DB_ID);
-        createSchemaConstraint(ReactionLikeEvent.class, STABLE_IDENTIFIER);
+        createSchemaConstraint(ReactionlikeEvent.class, ReactomeJavaConstants.DB_ID);
+        createSchemaConstraint(ReactionlikeEvent.class, STABLE_IDENTIFIER);
 
         createSchemaConstraint(Reaction.class, ReactomeJavaConstants.DB_ID);
         createSchemaConstraint(Reaction.class, STABLE_IDENTIFIER);
@@ -963,8 +963,6 @@ public class ReactomeBatchImporter {
 
     private ReactomeAttribute.PropertyType getSchemaClassType(Class<?> clazz, String attribute) {
         String className = clazz.getSimpleName();
-        //The class ReactionLikeEvent is named ReactionlikeEvent
-        className = className.equals(ReactionLikeEvent.class.getSimpleName()) ? "ReactionlikeEvent" : className;
         try {
             switch (dba.fetchSchema().getClassByName(className).getAttribute(attribute).getCategory()) {
                 case 1:
