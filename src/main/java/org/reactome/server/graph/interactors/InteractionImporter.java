@@ -217,12 +217,18 @@ public class InteractionImporter {
             rtn.put("identifier", rawIdentifier.split("-")[0]);  //DO NOT MOVE OUTSIDE
             rtn.put("databaseName", "UniProt");
 
-            rtn.put("url", "http://www.uniprot.org/entry/" + rawIdentifier);
             if (rawIdentifier.contains("-")) {
+                //for cases like UniProt:O00187-PRO_0000027598 MASP2
+                if(rawIdentifier.split("-")[1].contains("PRO")){
+                    rtn.put("url", "https://www.uniprot.org/uniprotkb/" + rawIdentifier.split("-")[0] +"/entry#" + rawIdentifier.split("-")[1]);
+                }else{
+                    rtn.put("url", "https://www.uniprot.org/uniprotkb/" + rawIdentifier + "/entry");
+                }
                 rtn.put("variantIdentifier", rawIdentifier);
                 //isofromParent //TODO
                 schemaClass = ReferenceIsoform.class;
             } else {
+                rtn.put("url", "https://www.uniprot.org/uniprotkb/" + rawIdentifier + "/entry");
                 schemaClass = ReferenceGeneProduct.class;
             }
         } else if (resource.getName().toLowerCase().contains("chebi")) {
