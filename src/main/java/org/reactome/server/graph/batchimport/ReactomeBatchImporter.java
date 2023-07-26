@@ -812,22 +812,6 @@ public class ReactomeBatchImporter {
         }
     }
 
-
-//    private static Label[] getAllClassNames(Class<?> clazz) {
-//        List<?> superClasses = ClassUtils.getAllSuperclasses(clazz);
-//        List<Label> labels = new ArrayList<>();
-//        labels.add(Label.label(clazz.getSimpleName()));
-//        for (Object object : superClasses) {
-//            Class<?> superClass = (Class<?>) object;
-//            if (!superClass.equals(Object.class)) {
-//                labels.add(Label.label(superClass.getSimpleName()));
-//            }
-//        }
-//        //noinspection ToArrayCallWithZeroLengthArrayArgument
-//        return labels.toArray(new Label[labels.size()]);
-//    }
-
-
     /**
      * Getting all SimpleNames as neo4j labels, for given class.
      *
