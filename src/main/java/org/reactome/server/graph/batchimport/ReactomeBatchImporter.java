@@ -1,6 +1,5 @@
 package org.reactome.server.graph.batchimport;
 
-import jodd.util.collection.MapEntry;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.IllegalClassException;
@@ -29,7 +28,9 @@ import org.springframework.data.neo4j.core.schema.Relationship;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -41,7 +42,6 @@ import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
 
@@ -528,13 +528,16 @@ public class ReactomeBatchImporter {
         // Last thing is iterating across all the list of objects previously mapped in primitiveListAttributesMap
         if (primitiveListAttributesMap.containsKey(clazz)) {
             for (ReactomeAttribute reactomeAttribute : primitiveListAttributesMap.get(clazz)) {
-                String attribute = reactomeAttribute.getAttribute();
+                String targetAttribute = reactomeAttribute.getAttribute();
+                String originAttribute = attributeRenaming.getOrDefault(reactomeAttribute, targetAttribute);
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
-                if (isValidGkInstanceAttribute(instance, attribute)) {
-                    Collection<?> values = getCollectionFromGkInstance(instance, attribute);
-                    if (isConsistent(instance, values, attribute, type)) {
-                        //noinspection SuspiciousToArrayCall,ToArrayCallWithZeroLengthArrayArgument
-                        properties.put(attribute, values.toArray(new String[values.size()]));
+                if (isValidGkInstanceAttribute(instance, originAttribute)) {
+                    Collection<?> values = getCollectionFromGkInstance(instance, originAttribute);
+                    if (isConsistent(instance, values, originAttribute, type)) {
+                        Class<?> attributeType = reactomeAttribute.getClazz();
+                        Object[] castedValues = (Object[]) Array.newInstance(attributeType, values.size());
+                        values.stream().map(attributeType::cast).collect(Collectors.toList()).toArray(castedValues);
+                        properties.put(targetAttribute, castedValues);
                     }
                 }
             }
@@ -854,7 +857,6 @@ public class ReactomeBatchImporter {
         if (!relationAttributesMap.containsKey(clazz) && !primitiveAttributesMap.containsKey(clazz)) {
             List<Field> fields = getAllFields(new ArrayList<>(), clazz);
             for (Field field : fields) {
-                String fieldName = field.getName();
                 ReactomeProperty rp = field.getAnnotation(ReactomeProperty.class);
                 ReactomeRelationship rr = field.getAnnotation(ReactomeRelationship.class);
 
@@ -863,13 +865,13 @@ public class ReactomeBatchImporter {
                 if (field.getAnnotation(Relationship.class) != null) {
                     if (field.getAnnotation(ReactomeTransient.class) == null) {
                         boolean addedField = rr != null && rr.addedField();
-                        attribute = addFields(relationAttributesMap, clazz, fieldName, addedField);
+                        attribute = addFields(relationAttributesMap, clazz, field, addedField);
                     }
                 } else if (rp != null) {
                     if (Collection.class.isAssignableFrom(field.getType())) {
-                        attribute = addFields(primitiveListAttributesMap, clazz, fieldName, rp.addedField());
+                        attribute = addFields(primitiveListAttributesMap, clazz, field, rp.addedField());
                     } else {
-                        attribute = addFields(primitiveAttributesMap, clazz, fieldName, rp.addedField());
+                        attribute = addFields(primitiveAttributesMap, clazz, field, rp.addedField());
                     }
                 }
 
@@ -903,9 +905,10 @@ public class ReactomeBatchImporter {
      * @param map   attribute map
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
      */
-    private ReactomeAttribute addFields(Map<Class<?>, List<ReactomeAttribute>> map, Class<?> clazz, String field, boolean addedField) {
-        ReactomeAttribute.PropertyType type = !addedField ? getSchemaClassType(clazz, field) : null;
-        ReactomeAttribute attribute = new ReactomeAttribute(field, type, clazz);
+    private ReactomeAttribute addFields(Map<Class<?>, List<ReactomeAttribute>> map, Class<?> clazz, Field field, boolean addedField) {
+        ReactomeAttribute.PropertyType type = !addedField ? getSchemaClassType(clazz, field.getName()) : null;
+        Class<?> elementType = Collection.class.isAssignableFrom(field.getType()) ? (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0] : field.getType();
+        ReactomeAttribute attribute = new ReactomeAttribute(field.getName(), type, elementType, clazz);
         if (map.containsKey(clazz)) {
             (map.get(clazz)).add(attribute);
         } else {
