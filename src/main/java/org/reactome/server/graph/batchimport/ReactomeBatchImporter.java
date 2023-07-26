@@ -234,7 +234,7 @@ public class ReactomeBatchImporter {
     }
 
     private List<GKInstance> getInstancesByClass(String className) throws Exception {
-        Collection<?> instances = dba.fetchInstancesByClass("_Deleted");
+        Collection<?> instances = dba.fetchInstancesByClass(className);
         return instances.stream().map(o -> (GKInstance) o).collect(Collectors.toList());
     }
 
