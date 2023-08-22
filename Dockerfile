@@ -15,4 +15,5 @@ COPY . /app
 RUN mvn clean package -DskipTests
 
 #Including relative path to the compiled java executable JAR file (created in Jenkinsfile)
-CMD ["java", "-jar", "target/GraphImporter-exec.jar", "--help"]
+#--help currently not defined
+CMD ["java", "-jar", "target/GraphImporter-exec.jar"]#, "--help"]
