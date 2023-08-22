@@ -6,34 +6,21 @@ def previousRelease
 pipeline
 {
 	agent any
-	stages
-	{
-		// This stage checks that upstream projects OrthoinferenceStableIdentifierHistory were run successfully for their last build.
-		stage('Check OrthoinferenceStableIdentifierHistory builds succeeded')
-		{
-			steps
-			{
-				script
-				{
-					currentRelease = (pwd() =~ /Releases\/(\d+)\//)[0][1];
-					previousRelease = (pwd() =~ /Releases\/(\d+)\//)[0][1].toInteger() - 1;
-					// This queries the Jenkins API to confirm that the most recent builds of AddLinks-Download and Orthoinference were successful.
-					checkUpstreamBuildsSucceeded("OrthoinferenceStableIdentifierHistory", "$currentRelease")
-				}
-			}
-		}
-
-		// This stage builds the jar file using maven.
-		stage('Setup: Build jar file')
-		{
-			steps
-			{
-				script
-				{
-					sh "mvn clean package -DskipTests"
-				}
-			}
-		}
+	environment {
+	       ECRURL = '851227637779.dkr.ecr.us-east-1.amazonaws.com'
+	    }
+	    
+	    stages {
+	        stage('pull image') {
+	            steps {
+	                script{
+	                    sh("eval \$(aws ecr get-login --no-include-email --region us-east-1)")
+	                    docker.withRegistry("https://" + ECRURL) {
+	                        docker.image("graph-importer:latest").pull()
+	                    }
+	                }
+	            }
+	        }
 		stage('Setup: Rename database')
 		{
 			// Normally, the relational database is named "release_current" but it need to be renamed to "reactome" because that's the name
@@ -61,7 +48,7 @@ pipeline
 				{
 					withCredentials([usernamePassword(credentialsId: 'mySQLUsernamePassword', passwordVariable: 'pass', usernameVariable: 'user')])
 					{
-						sh """java -jar target/GraphImporter-exec.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
+						sh """docker run -v \$(pwd)/output:/graphdb --net=host  ${ECRURL}/graph-importer:latest /bin/bash -c java -jar target/GraphImporter-exec.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
 					}
 				}
 			}
