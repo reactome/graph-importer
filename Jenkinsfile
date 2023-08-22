@@ -7,20 +7,29 @@ pipeline
 {
 	agent any
 	environment {
-	       ECRURL = '851227637779.dkr.ecr.us-east-1.amazonaws.com'
-	    }
+		ECRURL = '851227637779.dkr.ecr.us-east-1.amazonaws.com'
+	}
 	    
-	    stages {
-	        stage('pull image') {
-	            steps {
-	                script{
-	                    sh("eval \$(aws ecr get-login --no-include-email --region us-east-1)")
-	                    docker.withRegistry("https://" + ECRURL) {
-	                        docker.image("graph-importer:latest").pull()
-	                    }
-	                }
-	            }
-	        }
+	stages {
+		stage('pull image') {
+			steps {
+				script{
+					sh("eval \$(aws ecr get-login --no-include-email --region us-east-1)")
+					docker.withRegistry("https://" + ECRURL) {
+						docker.image("graph-importer:latest").pull()
+					}
+				}
+			}
+		}
+		stage('Check OrthoinferenceStableIdentifierHistory builds succeeded') {
+			steps {
+			script {
+				currentRelease = (pwd() =~ /Releases\/(\d+)\//)[0][1];
+				previousRelease = (pwd() =~ /Releases\/(\d+)\//)[0][1].toInteger() - 1;
+				checkUpstreamBuildsSucceeded("OrthoinferenceStableIdentifierHistory", "$currentRelease")
+			}
+			}
+		}
 		stage('Setup: Rename database')
 		{
 			// Normally, the relational database is named "release_current" but it need to be renamed to "reactome" because that's the name
@@ -48,7 +57,7 @@ pipeline
 				{
 					withCredentials([usernamePassword(credentialsId: 'mySQLUsernamePassword', passwordVariable: 'pass', usernameVariable: 'user')])
 					{
-						sh """docker run -v \$(pwd)/output:/graphdb --net=host  ${ECRURL}/graph-importer:latest /bin/bash -c java -jar target/GraphImporter-exec.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
+						sh """docker run -v \$(pwd)/output:/graphdb --net=host  ${ECRURL}/graph-importer:latest java -jar target/GraphImporter-exec.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
 					}
 				}
 			}
