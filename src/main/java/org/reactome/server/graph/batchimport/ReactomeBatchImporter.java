@@ -96,7 +96,7 @@ public class ReactomeBatchImporter {
     private GKInstance currentRelease;
 
     public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j,
-                                 boolean includeInteractors, String interactorsFile, String neo4jVersion) {
+                                 boolean includeInteractors, String interactorsFile, boolean isSQLLite, String neo4jVersion) {
         try {
             DATA_DIR = neo4j;
             this.neo4jVersion = neo4jVersion;
@@ -129,7 +129,7 @@ public class ReactomeBatchImporter {
             importLogger.error("An error occurred while retrieving the trivial molecules", e);
         }
 
-        if (includeInteractors) interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile);
+        if (includeInteractors) interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile, isSQLLite);
         gkInstanceHelper = new GKInstanceHelper(dba);
     }
 

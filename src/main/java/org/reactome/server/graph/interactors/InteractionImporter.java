@@ -50,6 +50,7 @@ public class InteractionImporter {
     private static final Long REACTOME_CHEBI_REFERENCE_DATABASE = 114984L;
 
     private static Boolean useUserInteractionData;
+    private static Boolean isSQLLite;
     private static String userInteractionDataFile;
     private static final String INTERACTION_DATA_TMP_FILE = "./interaction-data.tmp.db";
     private static final Integer QUERIES_OFFSET = 1000;
@@ -61,12 +62,13 @@ public class InteractionImporter {
     private static final Map<String, Set<Long>> referenceEntityMap = new HashMap<>(); // (UniProt:12345) -> [dbId]
     private static final Map<Long, InteractorResource> interactorResourceMap = new HashMap<>();
 
-    public InteractionImporter(MySQLAdaptor dba, Map<Long, Long> dbIds, Map<Integer, Long> taxIdDbId, String fileName) {
+    public InteractionImporter(MySQLAdaptor dba, Map<Long, Long> dbIds, Map<Integer, Long> taxIdDbId, String fileName, Boolean isSQLLite) {
         this.dba = dba;
         this.dbIds = dbIds;
         this.taxonomyHelper = new TaxonomyHelper(taxIdDbId);
         useUserInteractionData = fileName != null && !fileName.isEmpty();
         userInteractionDataFile = fileName;
+        this.isSQLLite = isSQLLite;
     }
 
     public void addInteractionData(BatchInserter batchInserter) {
@@ -270,11 +272,19 @@ public class InteractionImporter {
             importLogger.info("Cleaning instances cache");
             dba.refresh();
             if (useUserInteractionData) {
-                System.out.print("\rConnecting to the provided interaction data...");
-                importLogger.info("Connecting to the provided interaction data");
-                interactorsDatabase = new InteractorsDatabase(userInteractionDataFile);
-                importLogger.info("Connected to the provided interaction data");
-                System.out.print("\rConnected to the provided interaction data");
+                if (isSQLLite) {
+                    System.out.print("\rConnecting to the provided interaction data...");
+                    importLogger.info("Connecting to the provided interaction data");
+                    interactorsDatabase = new InteractorsDatabase(userInteractionDataFile);
+                    importLogger.info("Connected to the provided interaction data");
+                    System.out.print("\rConnected to the provided interaction data");
+                } else {
+                    System.out.print("\rConnecting to the provided interaction data...");
+                    importLogger.info("Connecting to the provided interaction data");
+                    interactorsDatabase = IntactParser.getInteractors(INTERACTION_DATA_TMP_FILE, userInteractionDataFile);
+                    importLogger.info("Connected to the provided interaction data");
+                    System.out.print("\rConnected to the provided interaction data");
+                }
             } else {
                 System.out.print("\rRetrieving interaction data...");
                 importLogger.info("Retrieving interaction data");

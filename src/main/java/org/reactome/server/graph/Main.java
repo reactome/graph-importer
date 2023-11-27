@@ -24,6 +24,7 @@ public class Main {
                         new FlaggedOption(  "neo4j",        JSAP.STRING_PARSER,   "./target/graph.db",  JSAP.NOT_REQUIRED, 'n', "neo4j",        "Path to the neo4j database"),
                         new FlaggedOption(  "neo4jVersion", JSAP.STRING_PARSER,   ">= 3.5.x",           JSAP.NOT_REQUIRED, 'r', "neo4jVersion", "Neo4j version"),
                         new FlaggedOption(  "intactFile",   JSAP.STRING_PARSER,   JSAP.NO_DEFAULT,          JSAP.NOT_REQUIRED, 'f', "intactFile",   "Path to the interaction data file"),
+                        new QualifiedSwitch("sqlLite",      JSAP.BOOLEAN_PARSER,  JSAP.NO_DEFAULT,          JSAP.NOT_REQUIRED, 'q', "sqlLite",      "Whether the provided file is an SQLite database or a intact-micluster.txt file to be parsed"),
                         new QualifiedSwitch("interactions", JSAP.BOOLEAN_PARSER,  JSAP.NO_DEFAULT,          JSAP.NOT_REQUIRED, 'i', "interactions", "Include interaction data. If the intactFile is not provided, the interaction data will be downloaded"),
                         new QualifiedSwitch("bar",          JSAP.BOOLEAN_PARSER,  JSAP.NO_DEFAULT,          JSAP.NOT_REQUIRED, 'b', "bar",          "Forces final status")
                 }
@@ -57,7 +58,7 @@ public class Main {
                 config.getString("user"),
                 config.getString("password"),
                 config.getString("neo4j"),
-                includeInteractions, intactFile,
+                includeInteractions, intactFile, config.getBoolean("sqlLite"),
                 config.getString("neo4jVersion")
         );
         batchImporter.importAll(!config.getBoolean("bar"));
