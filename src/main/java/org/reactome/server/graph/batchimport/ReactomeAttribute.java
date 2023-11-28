@@ -1,12 +1,9 @@
 package org.reactome.server.graph.batchimport;
 
-import java.util.Objects;
-
 public class ReactomeAttribute {
 
     private final String attribute;
     private final PropertyType type;
-    private final Class<?> parent;
 
     public enum PropertyType {
         //                  Allows
@@ -22,13 +19,12 @@ public class ReactomeAttribute {
         }
 
         public final boolean allowsNull;
-
         public final boolean allowsEmpty;
     }
-    ReactomeAttribute(String attribute, PropertyType type, Class<?> parent) {
+
+    ReactomeAttribute(String attribute, PropertyType type) {
         this.attribute = attribute;
         this.type = type;
-        this.parent = parent;
     }
 
     String getAttribute() {
@@ -39,20 +35,22 @@ public class ReactomeAttribute {
         return type;
     }
 
-    public Class<?> getParent() {
-        return parent;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        ReactomeAttribute attribute1 = (ReactomeAttribute) o;
-        return Objects.equals(attribute, attribute1.attribute) && type == attribute1.type && Objects.equals(parent, attribute1.parent);
+
+        ReactomeAttribute that = (ReactomeAttribute) o;
+
+        //noinspection SimplifiableIfStatement
+        if (attribute != null ? !attribute.equals(that.attribute) : that.attribute != null) return false;
+        return type != null ? type.equals(that.type) : that.type == null;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(attribute, type, parent);
+        int result = attribute != null ? attribute.hashCode() : 0;
+        result = 31 * result + (type != null ? type.hashCode() : 0);
+        return result;
     }
 }
