@@ -1,6 +1,5 @@
 package org.reactome.server.graph.batchimport;
 
-import jodd.util.collection.MapEntry;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.IllegalClassException;
@@ -41,7 +40,6 @@ import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
 
@@ -138,15 +136,19 @@ public class ReactomeBatchImporter {
         prepareDatabase();
 
         try {
+//            addDbInfo();
+        } catch (Exception e) {
+            String msg = "Database Information node cannot be created. The expected information is not present in the relational database.";
+            System.out.println(msg);
+            importLogger.warn(msg);
+        }
+
+        try {
             currentRelease = getLatestRelease();
-
-            LinkedHashMap<String, List<GKInstance>> typesToImport = new LinkedHashMap<>();
-            typesToImport.put("Top Level Pathways", getTopLevelPathways());
-            typesToImport.put("Deleted", getInstancesByClass("_Deleted"));
-            typesToImport.put("Release", getInstancesByClass("_Release"));
-            typesToImport.put("Update Trackers", getInstancesByClass("_UpdateTracker"));
-
-            for (Map.Entry<String, List<GKInstance>> entry : typesToImport.entrySet()) {
+            for (Map.Entry<String, List<GKInstance>> entry : Map.of(
+//                    "Top Level Pathways", getTopLevelPathways(),
+                    "Deleted", getDeleted(),
+                    "Update Trackers", getUpdateTrackers()).entrySet()) {
                 importLogger.info(MessageFormat.format("Started importing {0} {1}", entry.getValue().size(), entry.getKey()));
                 System.out.println(MessageFormat.format("Started importing {0} {1}\n", entry.getValue().size(), entry.getKey()));
                 importFromRoots(entry.getValue());
@@ -199,7 +201,6 @@ public class ReactomeBatchImporter {
 
     /**
      * Default 3.5.x
-     *
      * @return neo4j installed in the system that is running on the system.
      */
     private String getNeo4jVersion() {
@@ -233,9 +234,14 @@ public class ReactomeBatchImporter {
         return tlps;
     }
 
-    private List<GKInstance> getInstancesByClass(String className) throws Exception {
-        Collection<?> instances = dba.fetchInstancesByClass("_Deleted");
-        return instances.stream().map(o -> (GKInstance) o).collect(Collectors.toList());
+    private List<GKInstance> getDeleted() throws Exception {
+        Collection<?> deleted = dba.fetchInstancesByClass("_Deleted");
+        return deleted.stream().map(o -> (GKInstance) o).collect(Collectors.toList());
+    }
+
+    private List<GKInstance> getUpdateTrackers() throws Exception {
+        Collection<?> updateTrackers = dba.fetchInstancesByClass("_UpdateTracker");
+        return updateTrackers.stream().map(o -> (GKInstance) o).collect(Collectors.toList());
     }
 
     private GKInstance getLatestRelease() throws Exception {
@@ -268,7 +274,7 @@ public class ReactomeBatchImporter {
 
         if (relationAttributesMap.containsKey(clazz)) {
             for (ReactomeAttribute reactomeAttribute : relationAttributesMap.get(clazz)) {
-                String attribute = attributeRenaming.getOrDefault(reactomeAttribute, reactomeAttribute.getAttribute());
+                String attribute = reactomeAttribute.getAttribute();
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
                 switch (attribute) {
                     case "orthologousEvent":
@@ -378,7 +384,7 @@ public class ReactomeBatchImporter {
         properties.put("schemaClass", schemaClass);
         properties.put(DBID, instance.getDBID());
         if (instance == currentRelease) {
-            List<Label> list = new ArrayList<>(Arrays.asList(labels));
+            List<Label> list = Arrays.asList(labels);
             list.add(0, Label.label("DBInfo"));
             labels = list.toArray(new Label[0]);
             addDbInfo(properties);
@@ -870,13 +876,11 @@ public class ReactomeBatchImporter {
             for (Field field : fields) {
                 String fieldName = field.getName();
                 ReactomeProperty rp = field.getAnnotation(ReactomeProperty.class);
-                ReactomeRelationship rr = field.getAnnotation(ReactomeRelationship.class);
-
                 ReactomeAttribute attribute = null;
 
                 if (field.getAnnotation(Relationship.class) != null) {
                     if (field.getAnnotation(ReactomeTransient.class) == null) {
-                        boolean addedField = rr != null && rr.addedField();
+                        boolean addedField = field.getAnnotation(ReactomeRelationship.class) != null;
                         attribute = addFields(relationAttributesMap, clazz, fieldName, addedField);
                     }
                 } else if (rp != null) {
@@ -889,8 +893,6 @@ public class ReactomeBatchImporter {
 
                 if (rp != null && !rp.originName().isEmpty() && attribute != null) {
                     attributeRenaming.put(attribute, rp.originName());
-                } else if (rr != null && !rr.originName().isEmpty() && attribute != null) {
-                    attributeRenaming.put(attribute, rr.originName());
                 }
             }
         }
