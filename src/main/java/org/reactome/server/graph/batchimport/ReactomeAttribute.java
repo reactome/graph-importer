@@ -6,7 +6,6 @@ public class ReactomeAttribute {
 
     private final String attribute;
     private final PropertyType type;
-    private final Class<?> clazz;
     private final Class<?> parent;
 
     public enum PropertyType {
@@ -26,10 +25,9 @@ public class ReactomeAttribute {
 
         public final boolean allowsEmpty;
     }
-    ReactomeAttribute(String attribute, PropertyType type, Class<?> clazz, Class<?> parent) {
+    ReactomeAttribute(String attribute, PropertyType type, Class<?> parent) {
         this.attribute = attribute;
         this.type = type;
-        this.clazz = clazz;
         this.parent = parent;
     }
 
@@ -43,10 +41,6 @@ public class ReactomeAttribute {
 
     public Class<?> getParent() {
         return parent;
-    }
-
-    public Class<?> getClazz() {
-        return clazz;
     }
 
     @Override
