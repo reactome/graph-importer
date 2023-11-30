@@ -307,7 +307,7 @@ public class InteractionImporter {
         try {
             importLogger.trace("Cleaning interactors cache");
             interactorsDatabase.getConnection().close();
-            interactorsDatabase = new InteractorsDatabase(useUserInteractionData ? userInteractionDataFile : INTERACTION_DATA_TMP_FILE);
+            interactorsDatabase = new InteractorsDatabase(useUserInteractionData && isSQLLite ? userInteractionDataFile : INTERACTION_DATA_TMP_FILE);
             interactionService = new InteractionService(interactorsDatabase);
             interactorResourceService = new InteractorResourceService(interactorsDatabase);
             importLogger.trace("Interactors cache cleaned");
