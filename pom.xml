@@ -1,153 +1,179 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>org.reactome.server.graph</groupId>
-    <artifactId>graph-importer</artifactId>
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.reactome.server.graph</groupId>
+	<artifactId>graph-importer</artifactId>
 
-    <packaging>jar</packaging>
-    <version>2.0.6</version>
-    <name>GraphImporter</name>
+	<packaging>jar</packaging>
+	<version>2.0.6</version>
+	<name>GraphImporter</name>
 
-    <description>
-        The Graph Importer is a executable jar file to convert data taken form the Reactome MySQL Database to a Neo4j Graph Database.
-        For more information visit the reactome github repository.
-    </description>
+	<description>
+		The Graph Importer is a executable jar file to convert data taken form the Reactome MySQL Database to a Neo4j Graph Database.
+		For more information visit the reactome github repository.
+	</description>
 
-    <organization>
-        <name>The European Bioinformatics Institute</name>
-        <url>https://www.ebi.ac.uk/</url>
-    </organization>
+	<organization>
+		<name>The European Bioinformatics Institute</name>
+		<url>https://www.ebi.ac.uk/</url>
+	</organization>
 
-    <parent>
-        <groupId>org.reactome.maven</groupId>
-        <artifactId>reactome-parent</artifactId>
-        <version>1.0.3</version>
-    </parent>
+	<parent>
+		<groupId>org.reactome.maven</groupId>
+		<artifactId>reactome-parent</artifactId>
+		<version>1.0.3</version>
+	</parent>
 
-    <properties>
+	<properties>
 
-        <main.class>org.reactome.server.graph.Main</main.class>
+		<main.class>org.reactome.server.graph.Main</main.class>
 
-    </properties>
+	</properties>
 
-    <dependencies>
-        <!--Graph core dependency, needed for accessing the model-->
-        <dependency>
-            <groupId>org.reactome.server.graph</groupId>
-            <artifactId>graph-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.reactome.server.interactors</groupId>
-            <artifactId>interactor-core</artifactId>
-            <version>1.1.5-SNAPSHOT</version>
-        </dependency>
-        <!--Reactome-base for MYSQL Adapter-->
-        <dependency>
-            <groupId>org.reactome.base</groupId>
-            <artifactId>reactome-base</artifactId>
-            <version>2.2.2-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-batch-insert</artifactId>
-        </dependency>
-        <!--Jasp console reader-->
-        <dependency>
-            <groupId>com.martiansoftware</groupId>
-            <artifactId>jsap</artifactId>
-        </dependency>
-        <!--Org json importer-->
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-        </dependency>
-        <!--Logback classic-->
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-        </dependency>
-        <!-- Mysql connector -->
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-        </dependency>
-    </dependencies>
+	<dependencies>
+		<!--Graph core dependency, needed for accessing the model-->
+		<dependency>
+			<groupId>org.reactome.server.graph</groupId>
+			<artifactId>graph-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.reactome.server.interactors</groupId>
+			<artifactId>interactor-core</artifactId>
+			<version>1.1.5-SNAPSHOT</version>
+		</dependency>
+		<!--Reactome-base for MYSQL Adapter-->
+		<dependency>
+			<groupId>org.reactome.base</groupId>
+			<artifactId>reactome-base</artifactId>
+			<version>2.2.2-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.neo4j</groupId>
+			<artifactId>neo4j-batch-insert</artifactId>
+		</dependency>
+		<!--Jasp console reader-->
+		<dependency>
+			<groupId>com.martiansoftware</groupId>
+			<artifactId>jsap</artifactId>
+		</dependency>
+		<!--Org json importer-->
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+		</dependency>
+		<!--Logback classic-->
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+		</dependency>
+		<!-- Mysql connector -->
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+		</dependency>
+	</dependencies>
 
-    <repositories>
-        <!--Maven Central repository-->
-        <repository>
-            <id>mvn-central</id>
-            <name>The Maven Central repository</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-        <!--EBI repository-->
-        <repository>
-            <id>nexus-ebi-repo</id>
-            <name>The EBI internal repository</name>
-            <url>https://www.ebi.ac.uk/Tools/maven/repos/content/groups/ebi-repo/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <!-- EBI SNAPSHOT repository -->
-        <repository>
-            <id>nexus-ebi-snapshot-repo</id>
-            <name>The EBI internal snapshot repository</name>
-            <url>https://www.ebi.ac.uk/Tools/maven/repos/content/groups/ebi-snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
+	<repositories>
+		<!--Maven Central repository-->
+		<repository>
+			<id>mvn-central</id>
+			<name>The Maven Central repository</name>
+			<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<!--EBI repository-->
+		<repository>
+			<id>nexus-ebi-repo</id>
+			<name>The EBI internal repository</name>
+			<url>https://www.ebi.ac.uk/Tools/maven/repos/content/groups/ebi-repo/</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<!-- EBI SNAPSHOT repository -->
+		<repository>
+			<id>nexus-ebi-snapshot-repo</id>
+			<name>The EBI internal snapshot repository</name>
+			<url>https://www.ebi.ac.uk/Tools/maven/repos/content/groups/ebi-snapshots/</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
 
-    <build>
-        <finalName>${project.name}</finalName>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
-                <configuration>
-                    <fork>true</fork>
-                    <mainClass>${main.class}</mainClass>
-                    <classifier>exec</classifier>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+	<build>
+		<finalName>${project.name}</finalName>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<version>${spring-boot.version}</version>
+				<configuration>
+					<fork>true</fork>
+					<mainClass>${main.class}</mainClass>
+					<classifier>exec</classifier>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.13.0</version>
+				<configuration>
+					<source>11</source>
+					<target>11</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.1.1</version>
+				<dependencies>
+					<!-- This dependency allows Checkstyle to understand Java 11 syntax -->
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>8.44</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>checkstyle-check</id>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<configLocation>checkstyle.xml</configLocation>
+					<!-- Optional: Set encoding -->
+					<encoding>UTF-8</encoding>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>
