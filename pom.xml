@@ -10,8 +10,8 @@
     <name>GraphImporter</name>
 
     <description>
-        The Graph Importer is a executable jar file to convert data taken form the Reactome MySQL Database to a Neo4j Graph Database.
-        For more information visit the reactome github repository.
+        The Graph Importer is an executable jar file to convert data taken form the Reactome MySQL Database to a Neo4j Graph Database.
+        For more information visit the reactome GitHub repository.
     </description>
 
     <organization>
@@ -37,10 +37,6 @@
             <groupId>org.reactome.server.graph</groupId>
             <artifactId>graph-core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.reactome.server.interactors</groupId>
-            <artifactId>interactor-core</artifactId>
-        </dependency>
         <!--Reactome-base for MYSQL Adapter-->
         <dependency>
             <groupId>org.reactome.base</groupId>
@@ -54,11 +50,6 @@
         <dependency>
             <groupId>com.martiansoftware</groupId>
             <artifactId>jsap</artifactId>
-        </dependency>
-        <!--Org json importer-->
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
         </dependency>
         <!--Logback classic-->
         <dependency>
