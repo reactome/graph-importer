@@ -29,8 +29,7 @@ When executing the jar file following properties have to be set.
 Usage:
   org.reactome.server.graph.Main [--help] [(-h|--host) <host>] [(-s|--port)
   <port>] [(-d|--name) <name>] [(-u|--user) <user>] [(-p|--password) <password>]
-  [(-n|--neo4j) <neo4j>] [(-f|--intactFile) <intactFile>]
-  [(-i|--interactions)[:<interactions>]] [(-b|--bar)[:<bar>]]
+  [(-n|--neo4j) <neo4j>] [(-b|--bar)[:<bar>]]
 
 A tool for importing reactome data import to the neo4j graphDb
 
@@ -55,13 +54,6 @@ A tool for importing reactome data import to the neo4j graphDb
 
   [(-n|--neo4j) <neo4j>]
         Path to the neo4j database (default: ./target/graph.db)
-
-  [(-f|--intactFile) <intactFile>]
-        Path to the interaction data file
-
-  [(-i|--interactions)[:<interactions>]]
-        Include interaction data. If the intactFile is not provided, the
-        interaction data will be downloaded
 ```
 
 Example:
