@@ -257,6 +257,11 @@ public class InteractionImporter {
         if (interactor.getSynonyms() != null && !interactor.getSynonyms().isEmpty()) {
             rtn.put("secondaryIdentifier", interactor.getSynonyms().split("\\$"));
         }
+
+        if (interactor.getType() != null && !interactor.getType().isEmpty()) {
+            rtn.put("moleculeType", interactor.getType());
+        }
+
         rtn.put("schemaClass", schemaClass.getSimpleName());
 
         //These two will removed from the map
