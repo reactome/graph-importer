@@ -87,6 +87,9 @@ jobs:
                 AWS_REPO: graph-importer
                 IMG_TAG: ${{ steps.get-hash.outputs.SHORT_SHA }}
               run: |
+                AWS_URI=$AWS_REGISTRY/$AWS_REGISTRY_ALIAS/$AWS_REPO
                 docker load --input /tmp/image.tar
-                docker image tag tmp-tag $AWS_REGISTRY/$AWS_REGISTRY_ALIAS/$AWS_REPO:$IMG_TAG
-                docker push $AWS_REGISTRY/$AWS_REGISTRY_ALIAS/$AWS_REPO:$IMG_TAG
+                docker tag tmp-tag $AWS_URI:latest
+                docker push $AWS_URI:latest
+                docker tag $AWS_URI:latest $AWS_URI:$IMG_TAG
+                docker push $AWS_URI:$IMG_TAG
