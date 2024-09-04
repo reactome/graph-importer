@@ -2,7 +2,6 @@ package org.reactome.server.graph.batchimport;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.ClassUtils;
 import org.apache.commons.lang.IllegalClassException;
 import org.apache.commons.lang.StringUtils;
 import org.gk.model.GKInstance;
@@ -29,7 +28,9 @@ import org.springframework.data.neo4j.core.schema.Relationship;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -37,8 +38,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DateFormat;
+import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
 
@@ -56,6 +59,7 @@ public class ReactomeBatchImporter {
 
     private static final String DBID = "dbId";
     private static final String STID = "stId";
+    private static final String DELETED_STID = "deletedStId";
     private static final String OLD_STID = "oldStId";
     private static final Long TAXONOMY_ROOT = 164487L;
     private static final String TAXONOMY_ID = "taxId";
@@ -69,6 +73,7 @@ public class ReactomeBatchImporter {
     private static final Map<Class<?>, List<ReactomeAttribute>> primitiveAttributesMap = new HashMap<>();
     private static final Map<Class<?>, List<ReactomeAttribute>> primitiveListAttributesMap = new HashMap<>();
     private static final Map<Class<?>, List<ReactomeAttribute>> relationAttributesMap = new HashMap<>();
+    private static final Map<ReactomeAttribute, String> attributeRenaming = new HashMap<>();
 
     public static Long maxDbId;
     private static final Map<Long, Long> dbIds = new HashMap<>();
@@ -87,6 +92,8 @@ public class ReactomeBatchImporter {
     private Set<String> trivialMolecules;
     private InteractionImporter interactionImporter;
     private final GKInstanceHelper gkInstanceHelper;
+
+    private GKInstance currentRelease;
 
     public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j,
                                  boolean includeInteractors, String interactorsFile, boolean isSQLLite, String neo4jVersion) {
@@ -131,34 +138,28 @@ public class ReactomeBatchImporter {
         prepareDatabase();
 
         try {
-            addDbInfo();
-        } catch (Exception e) {
-            String msg = "Database Information node cannot be created. The expected information is not present in the relational database.";
-            System.out.println(msg);
-            importLogger.warn(msg);
-        }
+            currentRelease = getLatestRelease();
 
-        try {
-            List<GKInstance> tlps = getTopLevelPathways();
-            importLogger.info("Started importing " + tlps.size() + " top level pathways");
-            System.out.println("Started importing " + tlps.size() + " top level pathways...\n");
-            for (GKInstance instance : tlps) {
-                long instanceStart = System.currentTimeMillis();
-                if (!dbIds.containsKey(instance.getDBID())) {
-                    importGkInstance(instance);
-                }
-                long elapsedTime = System.currentTimeMillis() - instanceStart;
-                int ms = (int) elapsedTime % 1000;
-                int sec = (int) (elapsedTime / 1000) % 60;
-                int min = (int) ((elapsedTime / (1000 * 60)) % 60);
-                importLogger.info(instance.getDisplayName() + " was processed within: " + min + " min " + sec + " sec " + ms + " ms");
+            LinkedHashMap<String, List<GKInstance>> typesToImport = new LinkedHashMap<>();
+            typesToImport.put("Top Level Pathways", getTopLevelPathways());
+            typesToImport.put("Deleted", getInstancesByClass("_Deleted"));
+            typesToImport.put("Release", getInstancesByClass("_Release"));
+            typesToImport.put("Update Trackers", getInstancesByClass("_UpdateTracker"));
+
+            for (Map.Entry<String, List<GKInstance>> entry : typesToImport.entrySet()) {
+                importLogger.info(MessageFormat.format("Started importing {0} {1}", entry.getValue().size(), entry.getKey()));
+                System.out.println(MessageFormat.format("Started importing {0} {1}\n", entry.getValue().size(), entry.getKey()));
+                importFromRoots(entry.getValue());
+                if (barComplete)
+                    ProgressBarUtils.completeProgressBar(total); //This is just forcing a 100% in the progress bar
+                importLogger.info(MessageFormat.format("Finished importing {0} {1}", entry.getValue().size(), entry.getKey()));
+                System.out.println(MessageFormat.format("Finished importing {0} {1}\n", entry.getValue().size(), entry.getKey()));
             }
-            if (barComplete) ProgressBarUtils.completeProgressBar(total); //This is just forcing a 100% in the progress bar
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        if(interactionImporter != null) interactionImporter.addInteractionData(batchInserter);
+        if (interactionImporter != null) interactionImporter.addInteractionData(batchInserter);
 
         printConsistencyCheckReport();
 
@@ -171,17 +172,34 @@ public class ReactomeBatchImporter {
 
     }
 
-    private void addDbInfo() throws Exception {
-        Map<String, Object> properties = new HashMap<>();
+    private void importFromRoots(List<GKInstance> importRoots) {
+        for (GKInstance instance : importRoots) {
+            long instanceStart = System.currentTimeMillis();
+            if (!dbIds.containsKey(instance.getDBID())) {
+                try {
+                    importGkInstance(instance);
+                } catch (ClassNotFoundException e) {
+                    importLogger.error(instance.getDisplayName() + " failed to be fully imported because it is using directly or indirectly a class not defined in graph-core : " + e.getMessage());
+                }
+            }
+            long elapsedTime = System.currentTimeMillis() - instanceStart;
+            int ms = (int) elapsedTime % 1000;
+            int sec = (int) (elapsedTime / 1000) % 60;
+            int min = (int) ((elapsedTime / (1000 * 60)) % 60);
+            importLogger.info(instance.getDisplayName() + " was processed within: " + min + " min " + sec + " sec " + ms + " ms");
+        }
+    }
+
+    private Map<String, Object> addDbInfo(Map<String, Object> properties) {
         properties.put("name", dba.getDBName());
-        properties.put("version", dba.getReleaseNumber());
         properties.put("checksum", getDatabaseChecksum());
         properties.put("neo4j", getNeo4jVersion());
-        batchInserter.createNode(properties, Label.label("DBInfo"));
+        return properties;
     }
 
     /**
      * Default 3.5.x
+     *
      * @return neo4j installed in the system that is running on the system.
      */
     private String getNeo4jVersion() {
@@ -215,6 +233,22 @@ public class ReactomeBatchImporter {
         return tlps;
     }
 
+    private List<GKInstance> getInstancesByClass(String className) throws Exception {
+        Collection<?> instances = dba.fetchInstancesByClass(className);
+        return instances.stream().map(o -> (GKInstance) o).collect(Collectors.toList());
+    }
+
+    private GKInstance getLatestRelease() throws Exception {
+        Collection<?> releases = dba.fetchInstancesByClass("_Release");
+        return releases.stream().map(o -> ((GKInstance) o)).max(Comparator.comparing(instance -> {
+            try {
+                return (int) instance.getAttributeValue("releaseNumber");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        })).orElse((GKInstance) releases.iterator().next());
+    }
+
     /**
      * Imports one single GkInstance into neo4j.
      * When iterating through the relationAttributes it is possible to go deeper
@@ -234,12 +268,13 @@ public class ReactomeBatchImporter {
 
         if (relationAttributesMap.containsKey(clazz)) {
             for (ReactomeAttribute reactomeAttribute : relationAttributesMap.get(clazz)) {
-                String attribute = reactomeAttribute.getAttribute();
+                String targetAttribute = reactomeAttribute.getAttribute();
+                String originAttribute = attributeRenaming.getOrDefault(reactomeAttribute, targetAttribute);
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
-                switch (attribute) {
+                switch (originAttribute) {
                     case "orthologousEvent":
                         if (isCuratedEvent(instance)) {
-                            Collection<GKInstance> orthologousAll = getCollectionFromGkInstance(instance, attribute);
+                            Collection<GKInstance> orthologousAll = getCollectionFromGkInstance(instance, originAttribute);
                             if (orthologousAll != null && !orthologousAll.isEmpty()) {
                                 Collection<?> alreadyPointing = getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.inferredFrom);
                                 //orthologousEvents collection will only contain those that are not pointing to instance as inferredFrom to avoid inferredTo duplicates
@@ -260,18 +295,18 @@ public class ReactomeBatchImporter {
                         }
                         break;
                     case "inferredFrom": //Only for Event because in PhysicalEntity is ReactomeTransient
-                        if (isValidGkInstanceAttribute(instance, attribute)) {
-                            Collection<GKInstance> inferredFrom = getCollectionFromGkInstance(instance, attribute);
+                        if (isValidGkInstanceAttribute(instance, originAttribute)) {
+                            Collection<GKInstance> inferredFrom = getCollectionFromGkInstance(instance, originAttribute);
                             saveRelationships(id, inferredFrom, "inferredToReverse");
                         }
                         break;
                     case "inferredTo": //Only for PhysicalEntity
-                        if (isValidGkInstanceAttribute(instance, attribute)) {
-                            Collection<GKInstance> inferredTo = getCollectionFromGkInstance(instance, attribute);
+                        if (isValidGkInstanceAttribute(instance, originAttribute)) {
+                            Collection<GKInstance> inferredTo = getCollectionFromGkInstance(instance, originAttribute);
                             if (inferredTo == null || inferredTo.isEmpty()) {
                                 inferredTo = getCollectionFromGkInstanceReferrals(instance, ReactomeJavaConstants.inferredFrom);
                             }
-                            saveRelationships(id, inferredTo, attribute);
+                            saveRelationships(id, inferredTo, targetAttribute);
                         }
                         break;
                     case "hasEncapsulatedEvent":
@@ -294,7 +329,7 @@ public class ReactomeBatchImporter {
                                         }
                                     }
                                     diagram.deflate();
-                                    saveRelationships(id, encapsulatedEvents, attribute);
+                                    saveRelationships(id, encapsulatedEvents, targetAttribute);
                                 }
                             } catch (Exception e) {
                                 errorLogger.error("An exception occurred while trying to retrieve a diagram from entry with dbId: " + instance.getDBID() + "and name: " + instance.getDisplayName());
@@ -302,11 +337,11 @@ public class ReactomeBatchImporter {
                         }
                         break;
                     default:
-                        if (isValidGkInstanceAttribute(instance, attribute)) {
-                            Collection<GKInstance> relationships = getCollectionFromGkInstance(instance, attribute);
-                            if (isConsistent(instance, relationships, attribute, type)) {
+                        if (isValidGkInstanceAttribute(instance, originAttribute)) {
+                            Collection<GKInstance> relationships = getCollectionFromGkInstance(instance, originAttribute);
+                            if (isConsistent(instance, relationships, originAttribute, type)) {
                                 //saveRelationships might enter in recursion so changes in "orthologousEvent" have to be carefully thought
-                                saveRelationships(id, relationships, attribute);
+                                saveRelationships(id, relationships, targetAttribute);
                             }
                         }
                 }
@@ -343,6 +378,12 @@ public class ReactomeBatchImporter {
         Map<String, Object> properties = new HashMap<>();
         properties.put("schemaClass", schemaClass);
         properties.put(DBID, instance.getDBID());
+        if (instance == currentRelease) {
+            List<Label> list = new ArrayList<>(Arrays.asList(labels));
+            list.add(0, Label.label("DBInfo"));
+            labels = list.toArray(new Label[0]);
+            addDbInfo(properties);
+        }
         if (instance.getDisplayName() != null) {
             // TO fix Different Styles in Person display Name (example Jupe, Steven or Jupe, S)
             if (instance.getSchemClass().isa(ReactomeJavaConstants.Person)) {
@@ -367,15 +408,16 @@ public class ReactomeBatchImporter {
         // Next thing is iterating across all the primitive attributes previously mapped in primitiveAttributesMap
         if (primitiveAttributesMap.containsKey(clazz)) {
             for (ReactomeAttribute reactomeAttribute : primitiveAttributesMap.get(clazz)) {
-                String attribute = reactomeAttribute.getAttribute();
+                String targetAttribute = reactomeAttribute.getAttribute();
+                String originAttribute = attributeRenaming.getOrDefault(reactomeAttribute, targetAttribute);
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
-                switch (attribute) {
+                switch (originAttribute) {
                     case STID:
                         GKInstance stableIdentifier = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.stableIdentifier);
                         if (stableIdentifier == null) continue;
                         String stId = (String) getObjectFromGkInstance(stableIdentifier, ReactomeJavaConstants.identifier);
                         if (stId == null) continue;
-                        properties.put(attribute, stId);
+                        properties.put(targetAttribute, stId);
                         //Stable identifier version
                         String version = (String) getObjectFromGkInstance(stableIdentifier, ReactomeJavaConstants.identifierVersion);
                         if (version != null) properties.put("stIdVersion", stId + "." + version);
@@ -389,19 +431,26 @@ public class ReactomeBatchImporter {
                             }
                         }
                         break;
+                    case DELETED_STID:
+                        GKInstance deletedStableIdentifier = (GKInstance) getObjectFromGkInstance(instance, "deletedStableIdentifier");
+                        if (deletedStableIdentifier == null) continue;
+                        String dStId = (String) getObjectFromGkInstance(deletedStableIdentifier, ReactomeJavaConstants.identifier);
+                        if (dStId == null) continue;
+                        properties.put(targetAttribute, dStId);
+                        break;
                     case "orcidId":
                         GKInstance orcid = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
                         if (orcid == null) continue;
                         String orcidId = (String) getObjectFromGkInstance(orcid, ReactomeJavaConstants.identifier);
                         if (orcidId == null) continue;
-                        properties.put(attribute, orcidId);
+                        properties.put(targetAttribute, orcidId);
                         break;
                     case TAXONOMY_ID:
                         GKInstance taxon = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
                         String taxId = taxon != null ? (String) getObjectFromGkInstance(taxon, ReactomeJavaConstants.identifier) : null;
                         if (taxId != null && !taxId.isEmpty()) {
                             taxIdDbId.put(Integer.valueOf(taxId), instance.getDBID());
-                            properties.put(attribute, taxId);
+                            properties.put(targetAttribute, taxId);
                         } else if (!instance.getDBID().equals(TAXONOMY_ROOT)) {
                             errorLogger.warn("'" + TAXONOMY_ID + "' cannot be set for " + instance.getDBID() + ": " + instance.getDisplayName());
                         }
@@ -409,30 +458,30 @@ public class ReactomeBatchImporter {
                     case "hasDiagram":
                         GKInstance diagram = gkInstanceHelper.getHasDiagram(instance);
                         boolean hasDiagram = diagram != null;
-                        properties.put(attribute, hasDiagram);
-                        if(hasDiagram){
+                        properties.put(targetAttribute, hasDiagram);
+                        if (hasDiagram) {
                             properties.put("diagramWidth", getObjectFromGkInstance(diagram, "width"));
                             properties.put("diagramHeight", getObjectFromGkInstance(diagram, "height"));
                             diagram.deflate();
                         }
-                        properties.put(attribute, hasDiagram);
+                        properties.put(targetAttribute, hasDiagram);
                         break;
                     case "hasEHLD":
                         Boolean hasEHLD = (Boolean) getObjectFromGkInstance(instance, ReactomeJavaConstants.hasEHLD);
-                        properties.put(attribute, hasEHLD != null && hasEHLD);
+                        properties.put(targetAttribute, hasEHLD != null && hasEHLD);
                         break;
                     case "isInDisease":
                         GKInstance disease = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.disease);
-                        properties.put(attribute, disease != null);
+                        properties.put(targetAttribute, disease != null);
                         break;
                     case "isInferred":
                         GKInstance isInferredFrom = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.inferredFrom);
-                        properties.put(attribute, isInferredFrom != null);
+                        properties.put(targetAttribute, isInferredFrom != null);
                         break;
                     case "referenceType":
                         GKInstance referenceEntity = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.referenceEntity);
                         if (referenceEntity == null) continue;
-                        properties.put(attribute, referenceEntity.getSchemClass().getName());
+                        properties.put(targetAttribute, referenceEntity.getSchemClass().getName());
                         break;
                     case "speciesName":
                         if (instance.getSchemClass().isa(ReactomeJavaConstants.OtherEntity)) continue;
@@ -440,11 +489,11 @@ public class ReactomeBatchImporter {
                         List<?> speciesList = (List<?>) getCollectionFromGkInstance(instance, ReactomeJavaConstants.species);
                         if (speciesList == null || speciesList.isEmpty()) continue;
                         GKInstance species = (GKInstance) speciesList.get(0);
-                        properties.put(attribute, species.getDisplayName());
+                        properties.put(targetAttribute, species.getDisplayName());
                         break;
                     case "trivial":
                         String chebiId = (String) getObjectFromGkInstance(instance, "identifier");
-                        properties.put(attribute, chebiId != null && trivialMolecules.contains(chebiId));
+                        properties.put(targetAttribute, chebiId != null && trivialMolecules.contains(chebiId));
                         break;
                     case "url": //Can be added or existing
                         if (!instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceDatabase) && !instance.getSchemClass().isa(ReactomeJavaConstants.Figure)) {
@@ -465,13 +514,13 @@ public class ReactomeBatchImporter {
                             if (url == null || identifier == null) continue;
 
                             properties.put("databaseName", databaseName);
-                            properties.put(attribute, url.replace("###ID###", identifier));
+                            properties.put(targetAttribute, url.replace("###ID###", identifier));
                         } else {
-                            defaultAction(instance, attribute, properties, type);   //Can be added or existing
+                            defaultAction(instance, originAttribute, targetAttribute, properties, type);   //Can be added or existing
                         }
                         break;
                     default: //Here we are in a none graph-added field. The field content has to be treated based on the schema definition
-                        defaultAction(instance, attribute, properties, type);
+                        defaultAction(instance, originAttribute, targetAttribute, properties, type);
                 }
             }
         }
@@ -479,13 +528,16 @@ public class ReactomeBatchImporter {
         // Last thing is iterating across all the list of objects previously mapped in primitiveListAttributesMap
         if (primitiveListAttributesMap.containsKey(clazz)) {
             for (ReactomeAttribute reactomeAttribute : primitiveListAttributesMap.get(clazz)) {
-                String attribute = reactomeAttribute.getAttribute();
+                String targetAttribute = reactomeAttribute.getAttribute();
+                String originAttribute = attributeRenaming.getOrDefault(reactomeAttribute, targetAttribute);
                 ReactomeAttribute.PropertyType type = reactomeAttribute.getType();
-                if (isValidGkInstanceAttribute(instance, attribute)) {
-                    Collection<?> values = getCollectionFromGkInstance(instance, attribute);
-                    if (isConsistent(instance, values, attribute, type)) {
-                        //noinspection SuspiciousToArrayCall,ToArrayCallWithZeroLengthArrayArgument
-                        properties.put(attribute, values.toArray(new String[values.size()]));
+                if (isValidGkInstanceAttribute(instance, originAttribute)) {
+                    Collection<?> values = getCollectionFromGkInstance(instance, originAttribute);
+                    if (isConsistent(instance, values, originAttribute, type)) {
+                        Class<?> attributeType = reactomeAttribute.getClazz();
+                        Object[] castedValues = (Object[]) Array.newInstance(attributeType, values.size());
+                        values.stream().map(attributeType::cast).collect(Collectors.toList()).toArray(castedValues);
+                        properties.put(targetAttribute, castedValues);
                     }
                 }
             }
@@ -500,11 +552,11 @@ public class ReactomeBatchImporter {
     }
 
     //saveDatabaseObject default option
-    private void defaultAction(GKInstance instance, String attribute, Map<String, Object> properties, ReactomeAttribute.PropertyType type){
-        if (isValidGkInstanceAttribute(instance, attribute)) {
-            Object value = getObjectFromGkInstance(instance, attribute);
-            if (isConsistent(instance, value, attribute, type)) {
-                properties.put(attribute, value);
+    private void defaultAction(GKInstance instance, String originAttribute, String targetAttribute, Map<String, Object> properties, ReactomeAttribute.PropertyType type) {
+        if (isValidGkInstanceAttribute(instance, originAttribute)) {
+            Object value = getObjectFromGkInstance(instance, originAttribute);
+            if (isConsistent(instance, value, originAttribute, type)) {
+                properties.put(targetAttribute, value);
             }
         }
     }
@@ -733,16 +785,18 @@ public class ReactomeBatchImporter {
      * @param instance the instance for which the class name is required
      * @return a String with the className to be assigned to the instance conversion
      */
-    private static String getClassName(GKInstance instance){
-        if(instance.getSchemClass().isa("Drug") && instance.getSchemClass().isValidAttribute(ReactomeJavaConstants.drugType)) {
+    private static String getClassName(GKInstance instance) {
+        String name = instance.getSchemClass().getName();
+        if (name.startsWith("_")) name = name.substring(1);
+        if (instance.getSchemClass().isa("Drug") && instance.getSchemClass().isValidAttribute(ReactomeJavaConstants.drugType)) {
             try {
                 GKInstance drugType = (GKInstance) instance.getAttributeValue(ReactomeJavaConstants.drugType);
                 return DatabaseObject.class.getPackage().getName() + "." + drugType.getDisplayName();
             } catch (Exception e) {
-                return DatabaseObject.class.getPackage().getName() + "." + instance.getSchemClass().getName();
+                return DatabaseObject.class.getPackage().getName() + "." + name;
             }
         } else {
-            return DatabaseObject.class.getPackage().getName() + "." + instance.getSchemClass().getName();
+            return DatabaseObject.class.getPackage().getName() + "." + name;
         }
     }
 
@@ -755,7 +809,7 @@ public class ReactomeBatchImporter {
     public static Label[] getLabels(Class<?> clazz) {
 
         if (!labelMap.containsKey(clazz)) {
-            Label[] labels = getAllClassNames(clazz);
+            Label[] labels = getAllClassNames(clazz).toArray(new Label[]{});
             labelMap.put(clazz, labels);
             return labels;
         } else {
@@ -769,18 +823,21 @@ public class ReactomeBatchImporter {
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
      * @return Array of Neo4j SchemaClassCount
      */
-    private static Label[] getAllClassNames(Class<?> clazz) {
-        List<?> superClasses = ClassUtils.getAllSuperclasses(clazz);
-        List<Label> labels = new ArrayList<>();
+    private static List<Label> getAllClassNames(Class<?> clazz) {
+        return recursiveClassFetcher(clazz, new ArrayList<>());
+    }
+
+    private static List<Label> recursiveClassFetcher(Class<?> clazz, List<Label> labels) {
+        if (clazz == Object.class) return labels;
         labels.add(Label.label(clazz.getSimpleName()));
-        for (Object object : superClasses) {
-            Class<?> superClass = (Class<?>) object;
-            if (!superClass.equals(Object.class)) {
-                labels.add(Label.label(superClass.getSimpleName()));
-            }
-        }
-        //noinspection ToArrayCallWithZeroLengthArrayArgument
-        return labels.toArray(new Label[labels.size()]);
+        labels.addAll(Arrays.stream(clazz.getAnnotatedInterfaces())
+                .filter(type -> type.getType() instanceof Class<?>)
+                .map(type -> ((Class<?>) type.getType()))
+                .filter(i -> i.getPackage().equals(DatabaseObject.class.getPackage()))
+                .map(i -> Label.label(i.getSimpleName()))
+                .collect(Collectors.toList()));
+        recursiveClassFetcher(clazz.getSuperclass(), labels);
+        return labels;
     }
 
 
@@ -800,19 +857,28 @@ public class ReactomeBatchImporter {
         if (!relationAttributesMap.containsKey(clazz) && !primitiveAttributesMap.containsKey(clazz)) {
             List<Field> fields = getAllFields(new ArrayList<>(), clazz);
             for (Field field : fields) {
-                String fieldName = field.getName();
+                ReactomeProperty rp = field.getAnnotation(ReactomeProperty.class);
+                ReactomeRelationship rr = field.getAnnotation(ReactomeRelationship.class);
+
+                ReactomeAttribute attribute = null;
+
                 if (field.getAnnotation(Relationship.class) != null) {
                     if (field.getAnnotation(ReactomeTransient.class) == null) {
-                        boolean addedField = field.getAnnotation(ReactomeRelationship.class) != null;
-                        addFields(relationAttributesMap, clazz, fieldName, addedField);
+                        boolean addedField = rr != null && rr.addedField();
+                        attribute = addFields(relationAttributesMap, clazz, field, addedField);
                     }
-                } else if (field.getAnnotation(ReactomeProperty.class) != null) {
-                    ReactomeProperty rp = field.getAnnotation(ReactomeProperty.class);
+                } else if (rp != null) {
                     if (Collection.class.isAssignableFrom(field.getType())) {
-                        addFields(primitiveListAttributesMap, clazz, fieldName, rp.addedField());
+                        attribute = addFields(primitiveListAttributesMap, clazz, field, rp.addedField());
                     } else {
-                        addFields(primitiveAttributesMap, clazz, fieldName, rp.addedField());
+                        attribute = addFields(primitiveAttributesMap, clazz, field, rp.addedField());
                     }
+                }
+
+                if (rp != null && !rp.originName().isEmpty() && attribute != null) {
+                    attributeRenaming.put(attribute, rp.originName());
+                } else if (rr != null && !rr.originName().isEmpty() && attribute != null) {
+                    attributeRenaming.put(attribute, rr.originName());
                 }
             }
         }
@@ -839,15 +905,18 @@ public class ReactomeBatchImporter {
      * @param map   attribute map
      * @param clazz Clazz of object that will result form converting the instance (eg Pathway, Reaction)
      */
-    private void addFields(Map<Class<?>, List<ReactomeAttribute>> map, Class<?> clazz, String field, boolean addedField) {
-        ReactomeAttribute.PropertyType type = !addedField ? getSchemaClassType(clazz, field) : null;
+    private ReactomeAttribute addFields(Map<Class<?>, List<ReactomeAttribute>> map, Class<?> clazz, Field field, boolean addedField) {
+        ReactomeAttribute.PropertyType type = !addedField ? getSchemaClassType(clazz, field.getName()) : null;
+        Class<?> elementType = Collection.class.isAssignableFrom(field.getType()) ? (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0] : field.getType();
+        ReactomeAttribute attribute = new ReactomeAttribute(field.getName(), type, elementType, clazz);
         if (map.containsKey(clazz)) {
-            (map.get(clazz)).add(new ReactomeAttribute(field, type));
+            (map.get(clazz)).add(attribute);
         } else {
             List<ReactomeAttribute> reactomeAttributeList = new ArrayList<>();
-            reactomeAttributeList.add(new ReactomeAttribute(field, type));
+            reactomeAttributeList.add(attribute);
             map.put(clazz, reactomeAttributeList);
         }
+        return attribute;
     }
 
     /**
@@ -898,7 +967,7 @@ public class ReactomeBatchImporter {
                 rtn = instance.getAttributeValuesList(attribute);
                 //In the converter we assume that the empty lists are the result of defensive programming in the
                 //GKInstance layer, so we turn those to null to reduce the number of field category check reports
-                rtn = ( rtn == null || rtn.isEmpty() ) ? null : rtn;
+                rtn = (rtn == null || rtn.isEmpty()) ? null : rtn;
             } catch (Exception e) {
                 errorLogger.error("An error occurred when trying to retrieve the '" + attribute + "' from instance with DbId:"
                         + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
@@ -921,7 +990,7 @@ public class ReactomeBatchImporter {
             rtn = instance.getReferers(attribute);
             //In the converter we assume that the empty lists are the result of defensive programming in the
             //GKInstance layer, so we turn those to null to reduce the number of field category check reports
-            rtn = ( rtn == null || rtn.isEmpty() ) ? null : rtn;
+            rtn = (rtn == null || rtn.isEmpty()) ? null : rtn;
         } catch (Exception e) {
             errorLogger.error("An error occurred when trying to retrieve referrals for '" + attribute + "' from instance with DbId:"
                     + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
@@ -969,10 +1038,10 @@ public class ReactomeBatchImporter {
             double total = checkSumQueries.size();
             int i = 0;
             for (String checkSumQuery : checkSumQueries) {
-                System.out.print(prefix + Math.round((++i/total) * 100) + "% (please wait...)");
+                System.out.print(prefix + Math.round((++i / total) * 100) + "% (please wait...)");
                 PreparedStatement css = dbaConn.prepareStatement(checkSumQuery);
                 ResultSet cs = css.executeQuery();
-                if(cs.next()) checkSum += cs.getLong("Checksum");
+                if (cs.next()) checkSum += cs.getLong("Checksum");
                 cs.close();
             }
             System.out.println("\rDatabase checksum successfully calculated: " + checkSum);
@@ -985,7 +1054,7 @@ public class ReactomeBatchImporter {
 
     //##################################### NEXT BIT IS USED FOR CONSISTENCY CHECK #####################################
 
-    private boolean isConsistent(GKInstance instance, Object value, String attribute, ReactomeAttribute.PropertyType type){
+    private boolean isConsistent(GKInstance instance, Object value, String attribute, ReactomeAttribute.PropertyType type) {
         boolean rtn = false;
         if (type == null) return true;
         if (value == null) {
@@ -1010,10 +1079,14 @@ public class ReactomeBatchImporter {
         className = className.equals(ReactionLikeEvent.class.getSimpleName()) ? "ReactionlikeEvent" : className;
         try {
             switch (dba.fetchSchema().getClassByName(className).getAttribute(attribute).getCategory()) {
-                case 1: return ReactomeAttribute.PropertyType.MANDATORY;
-                case 2: return ReactomeAttribute.PropertyType.REQUIRED;
-                case 3: return ReactomeAttribute.PropertyType.OPTIONAL;
-                case 4: return ReactomeAttribute.PropertyType.NOMANUALEDIT;
+                case 1:
+                    return ReactomeAttribute.PropertyType.MANDATORY;
+                case 2:
+                    return ReactomeAttribute.PropertyType.REQUIRED;
+                case 3:
+                    return ReactomeAttribute.PropertyType.OPTIONAL;
+                case 4:
+                    return ReactomeAttribute.PropertyType.NOMANUALEDIT;
             }
         } catch (Exception e) { /* Nothing here */ }
         importLogger.info("No category found for attribute '" + attribute + "' in class '" + className + "'. Set to OPTIONAL.");
@@ -1026,7 +1099,7 @@ public class ReactomeBatchImporter {
     private int consistencyLoggerEntries = 0;
 
     private void addConsistencyCheckEntry(String className, String attribute, ReactomeAttribute.PropertyType type, String error, Long dbId, String displayName) {
-        consistency.computeIfAbsent(className, k -> new HashMap<>()).computeIfAbsent(attribute, k-> new HashSet<>()).add(dbId);
+        consistency.computeIfAbsent(className, k -> new HashMap<>()).computeIfAbsent(attribute, k -> new HashSet<>()).add(dbId);
         if (consistencyLoggerEntries == 0) {
             consistencyCheckReportLogger.error("SchemaClass,Attribute,Category,Error,DbId,DisplayName");
         }
@@ -1034,8 +1107,8 @@ public class ReactomeBatchImporter {
         consistencyLoggerEntries++;
     }
 
-    private void printConsistencyCheckReport(){
-        if(consistencyLoggerEntries == 0) return;
+    private void printConsistencyCheckReport() {
+        if (consistencyLoggerEntries == 0) return;
         String aux = consistencyLoggerEntries == 1 ? "entry" : "entries";
         String message = String.format("The consistency check finished reporting %,d %s as follows:", consistencyLoggerEntries, aux);
         List<String> lines = new ArrayList<>();
