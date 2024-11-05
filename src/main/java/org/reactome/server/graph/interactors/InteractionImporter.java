@@ -35,7 +35,7 @@ import static org.reactome.server.graph.utils.FormatUtils.getTimeFormatted;
 
 /**
  * Imports interaction data from the IntAct database.
- * Uses the interactors-core project (https://github.com/reactome-pwp/interactors-core)
+ * Uses the interactors-core project (https://github.com/reactome/interactors-core)
  */
 public class InteractionImporter {
 
