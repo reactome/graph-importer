@@ -728,6 +728,8 @@ public class ReactomeBatchImporter {
         //This is needed
         createDeferredSchemaIndex(ReferenceIsoform.class, IDENTIFIER);
         createDeferredSchemaIndex(ReferenceIsoform.class, VARIANT_IDENTIFIER);
+        createDeferredSchemaIndex(ExternalOntology.class, IDENTIFIER); // Needed by search-indexer
+        createDeferredSchemaIndex(Taxon.class, NAME); // Needed by search-indexer
     }
 
     /**
