@@ -40,7 +40,7 @@
         <dependency>
             <groupId>org.reactome.server.interactors</groupId>
             <artifactId>interactor-core</artifactId>
-            <version>1.1.5-SNAPSHOT</version>
+            <version>1.1.6-SNAPSHOT</version>
         </dependency>
         <!--Reactome-base for MYSQL Adapter-->
         <dependency>
