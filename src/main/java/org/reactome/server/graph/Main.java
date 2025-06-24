@@ -1,6 +1,8 @@
 package org.reactome.server.graph;
 
 import com.martiansoftware.jsap.*;
+
+import org.reactome.server.graph.batchimport.ReactomeAllInstancesImporter;
 import org.reactome.server.graph.batchimport.ReactomeBatchImporter;
 
 import java.io.File;
@@ -51,7 +53,19 @@ public class Main {
          * final AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MyConfiguration.class);
          * ReactomeBatchImporter batchImporter = ctx.getBean(ReactomeBatchImporter.class);
          */
-        ReactomeBatchImporter batchImporter = new ReactomeBatchImporter(
+//        ReactomeBatchImporter batchImporter = new ReactomeBatchImporter(
+//                config.getString("host"),
+//                config.getInt("port"),
+//                config.getString("name"),
+//                config.getString("user"),
+//                config.getString("password"),
+//                config.getString("neo4j"),
+//                includeInteractions, intactFile, config.getBoolean("sqlLite"),
+//                config.getString("neo4jVersion")
+//        );
+//        batchImporter.importAll(!config.getBoolean("bar"));
+//        
+        ReactomeAllInstancesImporter batchImporter = new ReactomeAllInstancesImporter(
                 config.getString("host"),
                 config.getInt("port"),
                 config.getString("name"),
