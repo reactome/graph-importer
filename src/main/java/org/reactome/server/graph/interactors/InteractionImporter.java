@@ -223,20 +223,24 @@ public class InteractionImporter {
                 //for cases like UniProt:O00187-PRO_0000027598 MASP2
                 if(rawIdentifier.split("-")[1].contains("PRO")){
                     rtn.put("url", "https://www.uniprot.org/uniprotkb/" + rawIdentifier.split("-")[0] +"/entry#" + rawIdentifier.split("-")[1]);
+                    rtn.put("stId", "uniprot.chain:" + rawIdentifier);
                 }else{
                     rtn.put("url", "https://www.uniprot.org/uniprotkb/" + rawIdentifier + "/entry");
+                    rtn.put("stId", "uniprot.isoform:" + rawIdentifier);
                 }
                 rtn.put("variantIdentifier", rawIdentifier);
                 //isofromParent //TODO
                 schemaClass = ReferenceIsoform.class;
             } else {
                 rtn.put("url", "https://www.uniprot.org/uniprotkb/" + rawIdentifier + "/entry");
+                rtn.put("stId", "uniprot:" + rawIdentifier);
                 schemaClass = ReferenceGeneProduct.class;
             }
         } else if (resource.getName().toLowerCase().contains("chebi")) {
             refDbId = REACTOME_CHEBI_REFERENCE_DATABASE;
             //displayName added below
             rtn.put("identifier", rawIdentifier);  //DO NOT MOVE OUTSIDE
+            rtn.put("stId", "chebi:" + rawIdentifier);
             String alias = interactor.getAlias();
             if(alias != null && !alias.isEmpty()) {
                 String[] name = new String[1];
