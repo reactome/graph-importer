@@ -255,6 +255,7 @@ public class InteractionImporter {
             refDbId = intActReferenceDatabaseDbId;
             rtn.put("identifier", rawIdentifier);  //DO NOT MOVE OUTSIDE
             rtn.put("databaseName", resource.getName());
+            rtn.put("stId", "intact:" + rawIdentifier);
             rtn.put("url", "https://www.ebi.ac.uk/intact/query/" + rawIdentifier);
             schemaClass = ReferenceGeneProduct.class;
         }
