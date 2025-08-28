@@ -216,17 +216,18 @@ public class InteractionImporter {
         if (resource.getName().toLowerCase().contains("uniprot")) {
             refDbId = REACTOME_UNIPROT_REFERENCE_DATABASE;
             //displayName added below
-            rtn.put("identifier", rawIdentifier.split("-")[0]);  //DO NOT MOVE OUTSIDE
+            String[] idSplit = rawIdentifier.split("[-#]");
+            rtn.put("identifier", idSplit[0]);  //DO NOT MOVE OUTSIDE
             rtn.put("databaseName", "UniProt");
 
             if (rawIdentifier.contains("-")) {
-                //for cases like UniProt:O00187-PRO_0000027598 MASP2
-                if(rawIdentifier.split("-")[1].contains("PRO")){
-                    rtn.put("url", "https://www.uniprot.org/uniprotkb/" + rawIdentifier.split("-")[0] +"/entry#" + rawIdentifier.split("-")[1]);
-                    rtn.put("stId", "uniprot.chain:" + rawIdentifier);
+                //for cases like UniProt:O00187#PRO_0000027598 MASP2
+                if(idSplit[1].contains("PRO")){
+                    rtn.put("url", "https://www.uniprot.org/uniprotkb/" + idSplit[0] +"/entry#" + idSplit[1]);
+                    rtn.put("stId", "uniprot:" + rawIdentifier.replace("-PRO", "#PRO"));
                 }else{
                     rtn.put("url", "https://www.uniprot.org/uniprotkb/" + rawIdentifier + "/entry");
-                    rtn.put("stId", "uniprot.isoform:" + rawIdentifier);
+                    rtn.put("stId", "uniprot:" + rawIdentifier);
                 }
                 rtn.put("variantIdentifier", rawIdentifier);
                 //isofromParent //TODO

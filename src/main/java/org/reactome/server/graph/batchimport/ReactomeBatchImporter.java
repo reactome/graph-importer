@@ -552,10 +552,6 @@ public class ReactomeBatchImporter {
             if (identifier != null) {
                 GKInstance referenceDatabase = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.referenceDatabase);
                 String prefix = getObjectFromGkInstance(referenceDatabase, ReactomeJavaConstants.identifiersPrefix, String.class);
-                if (instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceIsoform)) {
-                    if (identifier.contains("-PRO")) prefix = "uniprot.chain";
-                    else prefix = "uniprot.isoform";
-                }
                 if (prefix == null && referenceDatabase != null)
                     prefix = DatabaseToPrefix.mapping.get(referenceDatabase.getDBID());
                 if (prefix == null && referenceDatabase != null) {
