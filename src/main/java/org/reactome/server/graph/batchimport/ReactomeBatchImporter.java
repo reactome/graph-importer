@@ -545,7 +545,8 @@ public class ReactomeBatchImporter {
             }
         }
 
-        if (instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceEntity)) {
+        // TODO find a better solution for ReferenceGroup than not including them, but for now they create duplicate stId with ReferenceMolecule
+        if (instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceEntity) && !instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceGroup)) {
             String identifier = getObjectFromGkInstance(instance, ReactomeJavaConstants.identifier, String.class);
             String variant = getObjectFromGkInstance(instance, ReactomeJavaConstants.variantIdentifier, String.class);
             if (variant != null && !variant.isBlank()) identifier = variant;
