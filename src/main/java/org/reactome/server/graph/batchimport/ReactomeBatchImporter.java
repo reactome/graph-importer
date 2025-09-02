@@ -556,10 +556,13 @@ public class ReactomeBatchImporter {
                 if (prefix == null && referenceDatabase != null)
                     prefix = DatabaseToPrefix.mapping.get(referenceDatabase.getDBID());
                 if (prefix == null && referenceDatabase != null) {
-                    prefix = getCollectionFromGkInstance(instance, ReactomeJavaConstants.name, String.class).stream()
+                    Collection<String> names = getCollectionFromGkInstance(instance, ReactomeJavaConstants.name, String.class);
+                    if (names == null) names = List.of();
+                    prefix = names.stream()
                             .filter(name -> !name.contains(" "))
                             .min(Comparator.comparingInt(String::length))
                             .orElse(referenceDatabase.getDisplayName().replaceAll("[\\s:]", ".").trim().toLowerCase());
+                    importLogger.warn("No prefix found for reference database with dbId: " + referenceDatabase.getDBID() + ", used to create the stId for " + identifier + " (dbId" + instance.getDBID() + "). Falling back to the made-up prefix: " + prefix  );
                 }
                 if (prefix != null) properties.put(STID, prefix + ":" + identifier);
             }
