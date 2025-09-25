@@ -20,6 +20,7 @@ import org.reactome.server.graph.domain.annotations.ReactomeRelationship;
 import org.reactome.server.graph.domain.annotations.ReactomeTransient;
 import org.reactome.server.graph.domain.model.*;
 import org.reactome.server.graph.interactors.InteractionImporter;
+import org.reactome.server.graph.utils.DatabaseToPrefix;
 import org.reactome.server.graph.utils.GKInstanceHelper;
 import org.reactome.server.graph.utils.ProgressBarUtils;
 import org.slf4j.Logger;
@@ -129,7 +130,8 @@ public class ReactomeBatchImporter {
             importLogger.error("An error occurred while retrieving the trivial molecules", e);
         }
 
-        if (includeInteractors) interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile, isSQLLite);
+        if (includeInteractors)
+            interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile, isSQLLite);
         gkInstanceHelper = new GKInstanceHelper(dba);
     }
 
@@ -543,6 +545,29 @@ public class ReactomeBatchImporter {
             }
         }
 
+        // TODO find a better solution for ReferenceGroup than not including them, but for now they create duplicate stId with ReferenceMolecule
+        if (instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceEntity) && !instance.getSchemClass().isa(ReactomeJavaConstants.ReferenceGroup)) {
+            String identifier = getObjectFromGkInstance(instance, ReactomeJavaConstants.identifier, String.class);
+            String variant = getObjectFromGkInstance(instance, ReactomeJavaConstants.variantIdentifier, String.class);
+            if (variant != null && !variant.isBlank()) identifier = variant;
+            if (identifier != null) {
+                GKInstance referenceDatabase = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.referenceDatabase);
+                String prefix = getObjectFromGkInstance(referenceDatabase, ReactomeJavaConstants.identifiersPrefix, String.class);
+                if (prefix == null && referenceDatabase != null)
+                    prefix = DatabaseToPrefix.mapping.get(referenceDatabase.getDBID());
+                if (prefix == null && referenceDatabase != null) {
+                    Collection<String> names = getCollectionFromGkInstance(instance, ReactomeJavaConstants.name, String.class);
+                    if (names == null) names = List.of();
+                    prefix = names.stream()
+                            .filter(name -> !name.contains(" "))
+                            .min(Comparator.comparingInt(String::length))
+                            .orElse(referenceDatabase.getDisplayName().replaceAll("[\\s:]", ".").trim().toLowerCase());
+                    importLogger.warn("No prefix found for reference database with dbId: " + referenceDatabase.getDBID() + ", used to create the stId for " + identifier + " (dbId" + instance.getDBID() + "). Falling back to the made-up prefix: " + prefix  );
+                }
+                if (prefix != null) properties.put(STID, prefix + ":" + identifier);
+            }
+        }
+
         // The node is now ready to be inserted in the graph database
         try {
             return batchInserter.createNode(properties, labels);
@@ -728,6 +753,8 @@ public class ReactomeBatchImporter {
         //This is needed
         createDeferredSchemaIndex(ReferenceIsoform.class, IDENTIFIER);
         createDeferredSchemaIndex(ReferenceIsoform.class, VARIANT_IDENTIFIER);
+        createDeferredSchemaIndex(ExternalOntology.class, IDENTIFIER); // Needed by search-indexer
+        createDeferredSchemaIndex(Taxon.class, NAME); // Needed by search-indexer
     }
 
     /**
@@ -954,6 +981,25 @@ public class ReactomeBatchImporter {
     }
 
     /**
+     * A simple wrapper of the GkInstance.getAttributeValue Method used for error handling
+     *
+     * @param instance  GkInstance
+     * @param attribute FieldName
+     * @return Object
+     */
+    public static <T> T getObjectFromGkInstance(GKInstance instance, String attribute, Class<T> clazz) {
+        if (isValidGkInstanceAttribute(instance, attribute)) {
+            try {
+                return (T) instance.getAttributeValue(attribute);
+            } catch (Exception e) {
+                errorLogger.error("An error occurred when trying to retrieve the '" + attribute + "' from instance with DbId:"
+                        + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
+            }
+        }
+        return null;
+    }
+
+    /**
      * A simple wrapper of the GkInstance.getAttributeValueList Method used for error handling
      *
      * @param instance  GkInstance
@@ -962,6 +1008,29 @@ public class ReactomeBatchImporter {
      */
     private Collection<GKInstance> getCollectionFromGkInstance(GKInstance instance, String attribute) {
         Collection<GKInstance> rtn = null;
+        if (isValidGkInstanceAttribute(instance, attribute)) {
+            try {
+                rtn = instance.getAttributeValuesList(attribute);
+                //In the converter we assume that the empty lists are the result of defensive programming in the
+                //GKInstance layer, so we turn those to null to reduce the number of field category check reports
+                rtn = (rtn == null || rtn.isEmpty()) ? null : rtn;
+            } catch (Exception e) {
+                errorLogger.error("An error occurred when trying to retrieve the '" + attribute + "' from instance with DbId:"
+                        + instance.getDBID() + " and Name:" + instance.getDisplayName(), e);
+            }
+        }
+        return rtn;
+    }
+
+    /**
+     * A simple wrapper of the GkInstance.getAttributeValueList Method used for error handling
+     *
+     * @param instance  GkInstance
+     * @param attribute FieldName
+     * @return Object
+     */
+    private <T> Collection<T> getCollectionFromGkInstance(GKInstance instance, String attribute, Class<T> clazz) {
+        Collection<T> rtn = null;
         if (isValidGkInstanceAttribute(instance, attribute)) {
             try {
                 rtn = instance.getAttributeValuesList(attribute);
