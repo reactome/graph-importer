@@ -658,6 +658,7 @@ public class ReactomeAllInstancesImporter {
             case "modified":
             case "revised":
             case "reviewed":
+            case "structureModified":
             case "modifiedList":      // These relationships are always created in the reverse direction
                 batchInserter.createRelationship(toId, fromId, relationshipType, properties);
                 break;
