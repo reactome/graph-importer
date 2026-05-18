@@ -27,7 +27,7 @@
     <dependency>
       <groupId>org.reactome.server.graph</groupId>
       <artifactId>graph-core</artifactId>
-      <version>2.0.14.CT</version>
+      <version>3.0.0.CT</version>
     </dependency>
     <dependency>
       <groupId>org.reactome.server.interactors</groupId>
