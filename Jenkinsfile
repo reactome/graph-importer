@@ -61,7 +61,7 @@ pipeline
 				{
 					withCredentials([usernamePassword(credentialsId: 'mySQLUsernamePassword', passwordVariable: 'pass', usernameVariable: 'user')])
 					{
-						sh """java -jar target/GraphImporter-exec.jar -h localhost -i -n ./graphdb -d reactome -u $user -p $pass """
+						sh """java -jar target/GraphImporter-exec.jar -h localhost -n ./graphdb -d reactome -u $user -p $pass """
 					}
 				}
 			}
