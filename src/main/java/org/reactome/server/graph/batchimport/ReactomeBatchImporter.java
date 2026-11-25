@@ -19,7 +19,6 @@ import org.reactome.server.graph.domain.annotations.ReactomeProperty;
 import org.reactome.server.graph.domain.annotations.ReactomeRelationship;
 import org.reactome.server.graph.domain.annotations.ReactomeTransient;
 import org.reactome.server.graph.domain.model.*;
-import org.reactome.server.graph.interactors.InteractionImporter;
 import org.reactome.server.graph.utils.DatabaseToPrefix;
 import org.reactome.server.graph.utils.GKInstanceHelper;
 import org.reactome.server.graph.utils.ProgressBarUtils;
@@ -82,7 +81,6 @@ public class ReactomeBatchImporter {
     private static final Map<Long, Long> reverseReactions = new HashMap<>();
     private static final Map<Long, Long> equivalentTo = new HashMap<>();
     private static final Map<Class<?>, Label[]> labelMap = new HashMap<>();
-    private static final Map<Integer, Long> taxIdDbId = new HashMap<>();
 
     private static final Set<Long> topLevelPathways = new HashSet<>();
 
@@ -91,13 +89,12 @@ public class ReactomeBatchImporter {
     private static final DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private Set<String> trivialMolecules;
-    private InteractionImporter interactionImporter;
     private final GKInstanceHelper gkInstanceHelper;
 
     private GKInstance currentRelease;
 
     public ReactomeBatchImporter(String host, Integer port, String name, String user, String password, String neo4j,
-                                 boolean includeInteractors, String interactorsFile, boolean isSQLLite, String neo4jVersion) {
+                                 String neo4jVersion) {
         try {
             DATA_DIR = neo4j;
             this.neo4jVersion = neo4jVersion;
@@ -130,8 +127,6 @@ public class ReactomeBatchImporter {
             importLogger.error("An error occurred while retrieving the trivial molecules", e);
         }
 
-        if (includeInteractors)
-            interactionImporter = new InteractionImporter(dba, dbIds, taxIdDbId, interactorsFile, isSQLLite);
         gkInstanceHelper = new GKInstanceHelper(dba);
     }
 
@@ -160,8 +155,6 @@ public class ReactomeBatchImporter {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        if (interactionImporter != null) interactionImporter.addInteractionData(batchInserter);
 
         printConsistencyCheckReport();
 
@@ -451,7 +444,6 @@ public class ReactomeBatchImporter {
                         GKInstance taxon = (GKInstance) getObjectFromGkInstance(instance, ReactomeJavaConstants.crossReference);
                         String taxId = taxon != null ? (String) getObjectFromGkInstance(taxon, ReactomeJavaConstants.identifier) : null;
                         if (taxId != null && !taxId.isEmpty()) {
-                            taxIdDbId.put(Integer.valueOf(taxId), instance.getDBID());
                             properties.put(targetAttribute, taxId);
                         } else if (!instance.getDBID().equals(TAXONOMY_ROOT)) {
                             errorLogger.warn("'" + TAXONOMY_ID + "' cannot be set for " + instance.getDBID() + ": " + instance.getDisplayName());
